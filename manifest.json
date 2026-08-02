@@ -1,0 +1,11 @@
+{
+  "name": "Касса",
+  "short_name": "Касса",
+  "description": "Семейный бюджет и ежедневный лимит расходов",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "lang": "ru"
+}
