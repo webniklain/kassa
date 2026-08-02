@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  />
+
+  <title>Семейный бюджет</title>
+
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="manifest" href="manifest.json" />
+</head>
+
+<body>
+  <main class="app">
+    <header class="header">
+      <div>
+        <p class="eyebrow">Семейный бюджет</p>
+        <h1 id="current-month">Август 2026</h1>
+      </div>
+
+      <button id="open-budget-button" class="icon-button" type="button">
+        ⚙️
+      </button>
+    </header>
+
+    <section class="summary-card">
+      <div class="summary-row">
+        <span>Бюджет месяца</span>
+        <strong id="budget-total">0 GEL</strong>
+      </div>
+
+      <div class="summary-row income">
+        <span>Приходы</span>
+        <strong id="income-total">+0 GEL</strong>
+      </div>
+
+      <div class="summary-row expense">
+        <span>Расходы</span>
+        <strong id="expense-total">−0 GEL</strong>
+      </div>
+
+      <div class="summary-divider"></div>
+
+      <div class="summary-row balance">
+        <span>Остаток</span>
+        <strong id="balance-total">0 GEL</strong>
+      </div>
+    </section>
+
+    <section class="period-grid">
+      <article class="period-card">
+        <span>Сегодня</span>
+        <strong id="today-expenses">0 GEL</strong>
+      </article>
+
+      <article class="period-card">
+        <span>За 7 дней</span>
+        <strong id="week-expenses">0 GEL</strong>
+      </article>
+
+      <article class="period-card">
+        <span>За месяц</span>
+        <strong id="month-expenses">0 GEL</strong>
+      </article>
+    </section>
+
+    <section class="actions">
+      <button id="add-expense-button" class="action-button expense-button" type="button">
+        − Добавить расход
+      </button>
+
+      <button id="add-income-button" class="action-button income-button" type="button">
+        + Добавить приход
+      </button>
+    </section>
+
+    <section class="history-section">
+      <div class="section-heading">
+        <h2>Последние операции</h2>
+        <button id="clear-all-button" class="text-button" type="button">
+          Очистить
+        </button>
+      </div>
+
+      <div id="transactions-list" class="transactions-list">
+        <p class="empty-state">Операций пока нет</p>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="transaction-dialog" class="dialog">
+    <form id="transaction-form" method="dialog">
+      <div class="dialog-header">
+        <h2 id="transaction-dialog-title">Добавить расход</h2>
+
+        <button
+          id="close-transaction-dialog"
+          class="icon-button"
+          type="button"
+        >
+          ✕
+        </button>
+      </div>
+
+      <input id="transaction-type" type="hidden" value="expense" />
+
+      <label class="field">
+        <span>Сумма</span>
+        <input
+          id="transaction-amount"
+          type="number"
+          min="0.01"
+          step="0.01"
+          inputmode="decimal"
+          placeholder="Например, 48"
+          required
+        />
+      </label>
+
+      <label class="field">
+        <span>Название</span>
+        <input
+          id="transaction-title"
+          type="text"
+          placeholder="Например, Carrefour"
+          maxlength="80"
+          required
+        />
+      </label>
+
+      <label id="category-field" class="field">
+        <span>Категория</span>
+        <select id="transaction-category">
+          <option value="Продукты">Продукты</option>
+          <option value="Сын">Сын</option>
+          <option value="Сигареты">Сигареты</option>
+          <option value="Транспорт">Транспорт</option>
+          <option value="Развлечения">Развлечения</option>
+          <option value="Wildberries">Wildberries</option>
+          <option value="Квартира">Квартира</option>
+          <option value="Кредит">Кредит</option>
+          <option value="Связь">Связь</option>
+          <option value="Аптека">Аптека</option>
+          <option value="Прочее">Прочее</option>
+        </select>
+      </label>
+
+      <label class="field">
+        <span>Дата</span>
+        <input id="transaction-date" type="date" required />
+      </label>
+
+      <label class="field">
+        <span>Комментарий</span>
+        <input
+          id="transaction-note"
+          type="text"
+          placeholder="Необязательно"
+          maxlength="120"
+        />
+      </label>
+
+      <button class="primary-button" type="submit">
+        Сохранить
+      </button>
+    </form>
+  </dialog>
+
+  <dialog id="budget-dialog" class="dialog">
+    <form id="budget-form" method="dialog">
+      <div class="dialog-header">
+        <h2>Бюджет месяца</h2>
+
+        <button
+          id="close-budget-dialog"
+          class="icon-button"
+          type="button"
+        >
+          ✕
+        </button>
+      </div>
+
+      <label class="field">
+        <span>Сумма бюджета в GEL</span>
+        <input
+          id="monthly-budget"
+          type="number"
+          min="0"
+          step="0.01"
+          inputmode="decimal"
+          placeholder="Например, 5420"
+          required
+        />
+      </label>
+
+      <button class="primary-button" type="submit">
+        Сохранить бюджет
+      </button>
+    </form>
+  </dialog>
+
+  <script src="storage.js"></script>
+  <script src="logic.js"></script>
+  <script src="ui.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
