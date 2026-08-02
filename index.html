@@ -29,7 +29,7 @@
   <meta name="theme-color" content="#090b0f" />
 </head>
 
-<body>
+<body class="auth-loading">
   <section id="login-screen" class="login-screen">
     <div class="login-card">
       <div class="login-logo">К</div>
@@ -80,7 +80,7 @@
     </div>
   </section>
 
-  <main class="app">
+  <main class="app" hidden>
     <header class="header">
       <div>
         <p class="eyebrow">Семейный бюджет</p>
@@ -398,6 +398,7 @@
     class="floating-record-button"
     type="button"
     aria-label="Записать операцию"
+    hidden
   >
     <span aria-hidden="true">+</span>
   </button>

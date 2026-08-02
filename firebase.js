@@ -47,7 +47,10 @@ try {
   db = getFirestore(firebaseApp);
 }
 
-setPersistence(auth, browserLocalPersistence).catch((error) => {
+const authPersistenceReady = setPersistence(
+  auth,
+  browserLocalPersistence,
+).catch((error) => {
   console.error("Не удалось сохранить Firebase-сессию:", error);
 });
 
@@ -113,7 +116,14 @@ async function handleLoginSubmit(event) {
     .value;
 
   try {
-    await signInWithEmailAndPassword(auth, email, password);
+    await authPersistenceReady;
+
+    await signInWithEmailAndPassword(
+      auth,
+      email,
+      password,
+    );
+
     document.getElementById("login-password").value = "";
   } catch (error) {
     showLoginError(getReadableAuthError(error));
@@ -160,15 +170,45 @@ const initialAuthPromise = new Promise((resolve) => {
 onAuthStateChanged(auth, (user) => {
   currentAuthUser = user;
 
+  const isAuthenticated = Boolean(user);
+
+  const loginScreen = document.getElementById(
+    "login-screen",
+  );
+
+  const app = document.querySelector(".app");
+
+  const floatingButton = document.getElementById(
+    "open-record-dialog-button",
+  );
+
+  /*
+   * Управляем видимостью напрямую.
+   * Это надёжнее, чем полагаться только на CSS-классы.
+   */
+  if (loginScreen) {
+    loginScreen.hidden = isAuthenticated;
+  }
+
+  if (app) {
+    app.hidden = !isAuthenticated;
+  }
+
+  if (floatingButton) {
+    floatingButton.hidden = !isAuthenticated;
+  }
+
   document.body.classList.toggle(
     "is-authenticated",
-    Boolean(user),
+    isAuthenticated,
   );
 
   document.body.classList.toggle(
     "is-guest",
-    !user,
+    !isAuthenticated,
   );
+
+  document.body.classList.remove("auth-loading");
 
   const userEmail = document.getElementById(
     "current-user-email",
