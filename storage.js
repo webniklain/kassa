@@ -1,7 +1,32 @@
 const STORAGE_KEYS = {
-  transactions: "family-budget-transactions",
-  monthlyBudgets: "family-budget-monthly-budgets",
+  transactions: "kassa-transactions",
+  categories: "kassa-categories",
+  monthlyBudgets: "kassa-monthly-budgets",
 };
+
+const DEFAULT_CATEGORIES = [
+  {
+    id: "category-products",
+    name: "Продукты",
+    icon: "🛒",
+    isArchived: false,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "category-child",
+    name: "Сын",
+    icon: "👦",
+    isArchived: false,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: "category-other",
+    name: "Прочее",
+    icon: "📦",
+    isArchived: false,
+    createdAt: new Date().toISOString(),
+  },
+];
 
 function readJson(key, fallbackValue) {
   try {
@@ -13,7 +38,7 @@ function readJson(key, fallbackValue) {
 
     return JSON.parse(rawValue);
   } catch (error) {
-    console.error(`Не удалось прочитать данные из localStorage: ${key}`, error);
+    console.error(`Не удалось прочитать данные: ${key}`, error);
     return fallbackValue;
   }
 }
@@ -23,19 +48,14 @@ function writeJson(key, value) {
     localStorage.setItem(key, JSON.stringify(value));
     return true;
   } catch (error) {
-    console.error(`Не удалось сохранить данные в localStorage: ${key}`, error);
+    console.error(`Не удалось сохранить данные: ${key}`, error);
     return false;
   }
 }
 
 function loadTransactions() {
   const transactions = readJson(STORAGE_KEYS.transactions, []);
-
-  if (!Array.isArray(transactions)) {
-    return [];
-  }
-
-  return transactions;
+  return Array.isArray(transactions) ? transactions : [];
 }
 
 function saveTransactions(transactions) {
@@ -44,6 +64,25 @@ function saveTransactions(transactions) {
   }
 
   return writeJson(STORAGE_KEYS.transactions, transactions);
+}
+
+function loadCategories() {
+  const categories = readJson(STORAGE_KEYS.categories, null);
+
+  if (!Array.isArray(categories) || categories.length === 0) {
+    saveCategories(DEFAULT_CATEGORIES);
+    return [...DEFAULT_CATEGORIES];
+  }
+
+  return categories;
+}
+
+function saveCategories(categories) {
+  if (!Array.isArray(categories)) {
+    throw new TypeError("categories должен быть массивом");
+  }
+
+  return writeJson(STORAGE_KEYS.categories, categories);
 }
 
 function loadMonthlyBudgets() {
@@ -70,9 +109,4 @@ function saveMonthlyBudgets(monthlyBudgets) {
   }
 
   return writeJson(STORAGE_KEYS.monthlyBudgets, monthlyBudgets);
-}
-
-function clearStoredData() {
-  localStorage.removeItem(STORAGE_KEYS.transactions);
-  localStorage.removeItem(STORAGE_KEYS.monthlyBudgets);
 }

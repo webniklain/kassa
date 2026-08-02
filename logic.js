@@ -106,13 +106,31 @@ function calculateMonthlySummary(
   };
 }
 
+function createCategory(name) {
+  const normalizedName = name.trim();
+
+  if (!normalizedName) {
+    throw new Error("Введите название категории");
+  }
+
+  return {
+    id:
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `category-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    name: normalizedName,
+    icon: "📦",
+    isArchived: false,
+    createdAt: new Date().toISOString(),
+  };
+}
+
 function createTransaction({
   type,
   amount,
-  title,
-  category,
+  categoryId,
+  description,
   date,
-  note,
 }) {
   const numericAmount = Number(amount);
 
@@ -124,8 +142,8 @@ function createTransaction({
     throw new Error("Сумма должна быть больше нуля");
   }
 
-  if (!title.trim()) {
-    throw new Error("Укажите название операции");
+  if (type === "expense" && !categoryId) {
+    throw new Error("Выберите категорию");
   }
 
   if (!date) {
@@ -139,30 +157,43 @@ function createTransaction({
         : `${Date.now()}-${Math.random().toString(16).slice(2)}`,
     type,
     amount: numericAmount,
-    title: title.trim(),
-    category: type === "expense" ? category : "Приход",
+    categoryId: type === "expense" ? categoryId : null,
+    description: description.trim(),
     date,
-    note: note.trim(),
+    receiptUrl: null,
     createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   };
 }
 
 function sortTransactionsByNewest(transactions) {
   return [...transactions].sort((firstTransaction, secondTransaction) => {
-    const firstDate = new Date(
-      `${firstTransaction.date}T${firstTransaction.createdAt?.slice(11) || "00:00:00"}`,
-    );
+    const firstCreatedAt =
+      firstTransaction.createdAt || `${firstTransaction.date}T00:00:00`;
 
-    const secondDate = new Date(
-      `${secondTransaction.date}T${secondTransaction.createdAt?.slice(11) || "00:00:00"}`,
-    );
+    const secondCreatedAt =
+      secondTransaction.createdAt || `${secondTransaction.date}T00:00:00`;
 
-    return secondDate - firstDate;
+    return new Date(secondCreatedAt) - new Date(firstCreatedAt);
   });
 }
 
 function deleteTransactionById(transactions, transactionId) {
   return transactions.filter(
     (transaction) => transaction.id !== transactionId,
+  );
+}
+
+function findCategoryById(categories, categoryId) {
+  return (
+    categories.find((category) => category.id === categoryId) || null
+  );
+}
+
+function categoryNameExists(categories, name) {
+  const normalizedName = name.trim().toLowerCase();
+
+  return categories.some(
+    (category) => category.name.trim().toLowerCase() === normalizedName,
   );
 }

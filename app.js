@@ -1,4 +1,5 @@
 let transactions = loadTransactions();
+let categories = loadCategories();
 let monthlyBudgets = loadMonthlyBudgets();
 
 function refreshApp() {
@@ -9,7 +10,14 @@ function refreshApp() {
   );
 
   renderSummary(summary);
-  renderTransactions(transactions, handleDeleteTransaction);
+
+  renderCategoryOptions(categories);
+
+  renderTransactions(
+    transactions,
+    categories,
+    handleDeleteTransaction,
+  );
 }
 
 function handleDeleteTransaction(transactionId) {
@@ -43,6 +51,31 @@ function handleTransactionSubmit(event) {
     refreshApp();
   } catch (error) {
     showError(error.message || "Не удалось сохранить операцию");
+  }
+}
+
+function handleCategorySubmit(event) {
+  event.preventDefault();
+
+  try {
+    const name = getNewCategoryName();
+
+    if (categoryNameExists(categories, name)) {
+      showError("Такая категория уже существует");
+      return;
+    }
+
+    const category = createCategory(name);
+
+    categories.push(category);
+
+    saveCategories(categories);
+
+    renderCategoryOptions(categories, category.id);
+
+    closeCategoryDialog();
+  } catch (error) {
+    showError(error.message);
   }
 }
 
@@ -95,13 +128,13 @@ function registerEventListeners() {
   document
     .getElementById("add-expense-button")
     .addEventListener("click", () => {
-      openTransactionDialog("expense");
+      openTransactionDialog("expense", categories);
     });
 
   document
     .getElementById("add-income-button")
     .addEventListener("click", () => {
-      openTransactionDialog("income");
+      openTransactionDialog("income", categories);
     });
 
   document
@@ -147,6 +180,18 @@ function registerEventListeners() {
       "click",
       closeDialogWhenBackdropClicked,
     );
+
+  document
+    .getElementById("add-category-button")
+    .addEventListener("click", openCategoryDialog);
+
+  document
+    .getElementById("category-form")
+    .addEventListener("submit", handleCategorySubmit);
+
+  document
+    .getElementById("close-category-dialog")
+    .addEventListener("click", closeCategoryDialog);
 }
 
 function startApp() {

@@ -120,33 +120,21 @@
         />
       </label>
 
-      <label class="field">
-        <span>Название</span>
-        <input
-          id="transaction-title"
-          type="text"
-          placeholder="Например, Carrefour"
-          maxlength="80"
-          required
-        />
-      </label>
-
-      <label id="category-field" class="field">
+      <div id="category-field" class="field">
         <span>Категория</span>
-        <select id="transaction-category">
-          <option value="Продукты">Продукты</option>
-          <option value="Сын">Сын</option>
-          <option value="Сигареты">Сигареты</option>
-          <option value="Транспорт">Транспорт</option>
-          <option value="Развлечения">Развлечения</option>
-          <option value="Wildberries">Wildberries</option>
-          <option value="Квартира">Квартира</option>
-          <option value="Кредит">Кредит</option>
-          <option value="Связь">Связь</option>
-          <option value="Аптека">Аптека</option>
-          <option value="Прочее">Прочее</option>
-        </select>
-      </label>
+
+        <div class="category-row">
+          <select id="transaction-category" required></select>
+
+          <button
+            id="add-category-button"
+            class="secondary-button"
+            type="button"
+          >
+            + Новая
+          </button>
+        </div>
+      </div>
 
       <label class="field">
         <span>Дата</span>
@@ -154,9 +142,9 @@
       </label>
 
       <label class="field">
-        <span>Комментарий</span>
+        <span>Описание</span>
         <input
-          id="transaction-note"
+          id="transaction-description"
           type="text"
           placeholder="Необязательно"
           maxlength="120"
@@ -165,6 +153,37 @@
 
       <button class="primary-button" type="submit">
         Сохранить
+      </button>
+    </form>
+  </dialog>
+
+  <dialog id="category-dialog" class="dialog">
+    <form id="category-form" method="dialog">
+      <div class="dialog-header">
+        <h2>Новая категория</h2>
+
+        <button
+          id="close-category-dialog"
+          class="icon-button"
+          type="button"
+        >
+          ✕
+        </button>
+      </div>
+
+      <label class="field">
+        <span>Название категории</span>
+        <input
+          id="new-category-name"
+          type="text"
+          placeholder="Например, Аптека"
+          maxlength="40"
+          required
+        />
+      </label>
+
+      <button class="primary-button" type="submit">
+        Добавить категорию
       </button>
     </form>
   </dialog>

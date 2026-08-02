@@ -14,12 +14,15 @@ function formatTransactionDate(dateString) {
 }
 
 function formatMonthTitle(date = new Date()) {
-  const formatted = new Intl.DateTimeFormat("ru-RU", {
+  const formattedMonth = new Intl.DateTimeFormat("ru-RU", {
     month: "long",
     year: "numeric",
   }).format(date);
 
-  return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+  return (
+    formattedMonth.charAt(0).toUpperCase() +
+    formattedMonth.slice(1)
+  );
 }
 
 function setText(elementId, value) {
@@ -41,7 +44,53 @@ function renderSummary(summary) {
   setText("month-expenses", formatMoney(summary.monthExpenses));
 }
 
-function createTransactionElement(transaction, onDelete) {
+function renderCategoryOptions(categories, selectedCategoryId = "") {
+  const select = document.getElementById("transaction-category");
+
+  if (!select) {
+    return;
+  }
+
+  select.innerHTML = "";
+
+  const activeCategories = categories.filter(
+    (category) => !category.isArchived,
+  );
+
+  activeCategories.forEach((category) => {
+    const option = document.createElement("option");
+
+    option.value = category.id;
+    option.textContent = `${category.icon || "📦"} ${category.name}`;
+
+    if (category.id === selectedCategoryId) {
+      option.selected = true;
+    }
+
+    select.append(option);
+  });
+}
+
+function getTransactionDisplayTitle(transaction, categories) {
+  if (transaction.type === "income") {
+    return transaction.description || "Приход";
+  }
+
+  const category = findCategoryById(
+    categories,
+    transaction.categoryId,
+  );
+
+  return category
+    ? `${category.icon || "📦"} ${category.name}`
+    : "📦 Категория недоступна";
+}
+
+function createTransactionElement(
+  transaction,
+  categories,
+  onDelete,
+) {
   const item = document.createElement("article");
   item.className = "transaction-item";
 
@@ -50,21 +99,25 @@ function createTransactionElement(transaction, onDelete) {
 
   const title = document.createElement("div");
   title.className = "transaction-title";
-  title.textContent = transaction.title;
+  title.textContent = getTransactionDisplayTitle(
+    transaction,
+    categories,
+  );
 
   const meta = document.createElement("div");
   meta.className = "transaction-meta";
-  meta.textContent = `${transaction.category} · ${formatTransactionDate(
-    transaction.date,
-  )}`;
+  meta.textContent = formatTransactionDate(transaction.date);
 
   main.append(title, meta);
 
-  if (transaction.note) {
-    const note = document.createElement("div");
-    note.className = "transaction-note";
-    note.textContent = transaction.note;
-    main.append(note);
+  if (
+    transaction.type === "expense" &&
+    transaction.description
+  ) {
+    const description = document.createElement("div");
+    description.className = "transaction-note";
+    description.textContent = transaction.description;
+    main.append(description);
   }
 
   const side = document.createElement("div");
@@ -81,7 +134,9 @@ function createTransactionElement(transaction, onDelete) {
   deleteButton.className = "delete-button";
   deleteButton.type = "button";
   deleteButton.textContent = "Удалить";
-  deleteButton.addEventListener("click", () => onDelete(transaction.id));
+  deleteButton.addEventListener("click", () => {
+    onDelete(transaction.id);
+  });
 
   side.append(amount, deleteButton);
   item.append(main, side);
@@ -89,7 +144,11 @@ function createTransactionElement(transaction, onDelete) {
   return item;
 }
 
-function renderTransactions(transactions, onDelete) {
+function renderTransactions(
+  transactions,
+  categories,
+  onDelete,
+) {
   const list = document.getElementById("transactions-list");
 
   if (!list) {
@@ -101,35 +160,45 @@ function renderTransactions(transactions, onDelete) {
   if (transactions.length === 0) {
     const emptyState = document.createElement("p");
     emptyState.className = "empty-state";
-    emptyState.textContent = "Операций пока нет";
+    emptyState.textContent = "Записей пока нет";
     list.append(emptyState);
     return;
   }
 
-  const sortedTransactions = sortTransactionsByNewest(transactions);
+  const sortedTransactions =
+    sortTransactionsByNewest(transactions);
 
   sortedTransactions.forEach((transaction) => {
-    list.append(createTransactionElement(transaction, onDelete));
+    list.append(
+      createTransactionElement(
+        transaction,
+        categories,
+        onDelete,
+      ),
+    );
   });
 }
 
-function openTransactionDialog(type) {
+function openTransactionDialog(type, categories) {
   const dialog = document.getElementById("transaction-dialog");
   const form = document.getElementById("transaction-form");
   const typeInput = document.getElementById("transaction-type");
-  const title = document.getElementById("transaction-dialog-title");
+  const dialogTitle = document.getElementById(
+    "transaction-dialog-title",
+  );
   const categoryField = document.getElementById("category-field");
   const dateInput = document.getElementById("transaction-date");
 
   form.reset();
   typeInput.value = type;
-  dateInput.value = new Date().toISOString().slice(0, 10);
+  dateInput.value = getTodayDateInputValue();
 
   if (type === "expense") {
-    title.textContent = "Добавить расход";
+    dialogTitle.textContent = "Записать расход";
     categoryField.hidden = false;
+    renderCategoryOptions(categories);
   } else {
-    title.textContent = "Добавить приход";
+    dialogTitle.textContent = "Записать приход";
     categoryField.hidden = true;
   }
 
@@ -140,8 +209,34 @@ function openTransactionDialog(type) {
   }, 50);
 }
 
+function getTodayDateInputValue() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
 function closeTransactionDialog() {
   document.getElementById("transaction-dialog")?.close();
+}
+
+function openCategoryDialog() {
+  const dialog = document.getElementById("category-dialog");
+  const form = document.getElementById("category-form");
+  const input = document.getElementById("new-category-name");
+
+  form.reset();
+  dialog.showModal();
+
+  window.setTimeout(() => {
+    input.focus();
+  }, 50);
+}
+
+function closeCategoryDialog() {
+  document.getElementById("category-dialog")?.close();
 }
 
 function openBudgetDialog(currentBudget) {
@@ -164,15 +259,24 @@ function getTransactionFormValues() {
   return {
     type: document.getElementById("transaction-type").value,
     amount: document.getElementById("transaction-amount").value,
-    title: document.getElementById("transaction-title").value,
-    category: document.getElementById("transaction-category").value,
+    categoryId:
+      document.getElementById("transaction-category").value,
+    description:
+      document.getElementById(
+        "transaction-description",
+      ).value,
     date: document.getElementById("transaction-date").value,
-    note: document.getElementById("transaction-note").value,
   };
 }
 
+function getNewCategoryName() {
+  return document.getElementById("new-category-name").value;
+}
+
 function getBudgetFormValue() {
-  return Number(document.getElementById("monthly-budget").value);
+  return Number(
+    document.getElementById("monthly-budget").value,
+  );
 }
 
 function showError(message) {
