@@ -22,6 +22,17 @@ let lastCategoryId = loadLastCategoryId();
 let currentUser = null;
 let stopCloudSubscription = null;
 let eventListenersRegistered = false;
+let dayRefreshTimer = null;
+
+function getLocalDayKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+let lastRenderedDayKey = getLocalDayKey();
 
 function setSyncStatus(message, state = "idle") {
   const element = document.getElementById("sync-status");
@@ -60,6 +71,18 @@ function refreshApp() {
     handleDeleteTransaction,
   );
 }
+
+let dayRefreshTimer = null;
+
+function getLocalDayKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+let lastRenderedDayKey = getLocalDayKey();
 
 function handleEditTransaction(transactionId) {
   const transaction = transactions.find(
@@ -431,7 +454,8 @@ function handleAuthChange(user) {
 
 function startApp() {
   registerEventListeners();
-  refreshApp();
+  registerDateRefreshListeners();
+  refreshAppForCurrentDate();
   subscribeToAuth(handleAuthChange);
 }
 
