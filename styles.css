@@ -2065,3 +2065,133 @@ h1 {
     20px 25px 70px rgb(0 0 0 / 95%),
     -5px -5px 15px rgb(255 255 255 / 4%);
 }
+
+/* ==================================================
+   FIREBASE AUTH
+   ================================================== */
+
+body.is-guest .app,
+body.is-guest .floating-record-button {
+  display: none;
+}
+
+body.is-authenticated .login-screen {
+  display: none;
+}
+
+.login-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+
+  display: grid;
+  min-height: 100dvh;
+  place-items: center;
+
+  padding:
+    max(24px, env(safe-area-inset-top))
+    18px
+    max(24px, env(safe-area-inset-bottom));
+
+  background:
+    radial-gradient(
+      circle at 50% 12%,
+      rgb(64 76 98 / 32%),
+      transparent 34%
+    ),
+    #090b0f;
+}
+
+.login-card {
+  width: min(100%, 390px);
+  padding: 30px 24px;
+  border-radius: 32px;
+
+  background:
+    linear-gradient(
+      145deg,
+      #171b22,
+      #080a0e
+    );
+
+  box-shadow:
+    16px 16px 38px rgb(0 0 0 / 92%),
+    -7px -7px 18px rgb(255 255 255 / 5%);
+}
+
+.login-logo {
+  display: grid;
+  width: 62px;
+  height: 62px;
+  place-items: center;
+
+  margin-bottom: 24px;
+  border-radius: 20px;
+
+  background:
+    linear-gradient(
+      145deg,
+      #232934,
+      #090b0f
+    );
+
+  color: #52f06a;
+  font-size: 29px;
+  font-weight: 800;
+
+  box-shadow:
+    8px 8px 18px rgb(0 0 0 / 80%),
+    -4px -4px 10px rgb(255 255 255 / 5%);
+}
+
+.login-eyebrow {
+  margin: 0 0 7px;
+  color: #8d95a3;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.login-title {
+  margin: 0;
+  font-size: 39px;
+}
+
+.login-description {
+  margin: 12px 0 25px;
+  color: #969eab;
+}
+
+.login-form {
+  display: grid;
+  gap: 16px;
+}
+
+.login-error {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgb(255 89 102 / 12%);
+  color: #ff7a84;
+  font-size: 13px;
+}
+
+.login-form .primary-button {
+  width: 100%;
+}
+
+.login-form .primary-button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.logout-button {
+  color: #ff7680;
+}

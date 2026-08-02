@@ -15,6 +15,56 @@
 </head>
 
 <body>
+  <section id="login-screen" class="login-screen">
+    <div class="login-card">
+      <div class="login-logo">К</div>
+
+      <p class="login-eyebrow">Семейный бюджет</p>
+      <h1 class="login-title">Касса</h1>
+
+      <p class="login-description">
+        Войдите в семейный аккаунт
+      </p>
+
+      <form id="login-form" class="login-form">
+        <label class="field">
+          <span>Email</span>
+
+          <input
+            id="login-email"
+            type="email"
+            inputmode="email"
+            autocomplete="email"
+            placeholder="name@example.com"
+            required
+          />
+        </label>
+
+        <label class="field">
+          <span>Пароль</span>
+
+          <input
+            id="login-password"
+            type="password"
+            autocomplete="current-password"
+            placeholder="Введите пароль"
+            required
+          />
+        </label>
+
+        <p id="login-error" class="login-error" hidden></p>
+
+        <button
+          id="login-submit-button"
+          class="primary-button"
+          type="submit"
+        >
+          Войти
+        </button>
+      </form>
+    </div>
+  </section>
+
   <main class="app">
     <header class="header">
       <div>
@@ -22,9 +72,26 @@
         <h1 id="current-month">Август 2026</h1>
       </div>
 
-      <button id="open-budget-button" class="icon-button" type="button">
-        ⚙️
-      </button>
+      <div class="header-actions">
+        <button
+          id="logout-button"
+          class="icon-button logout-button"
+          type="button"
+          aria-label="Выйти"
+          title="Выйти"
+        >
+          ↪
+        </button>
+
+        <button
+          id="open-budget-button"
+          class="icon-button"
+          type="button"
+          aria-label="Настройки бюджета"
+        >
+          ⚙
+        </button>
+      </div>
     </header>
 
     <section class="summary-card">
@@ -317,5 +384,6 @@
   <script src="logic.js"></script>
   <script src="ui.js"></script>
   <script src="app.js"></script>
+  <script type="module" src="firebase.js"></script>
 </body>
 </html>
