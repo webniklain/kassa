@@ -19,9 +19,11 @@ let transactions = loadTransactions();
 let categories = loadCategories();
 let monthlyBudgets = loadMonthlyBudgets();
 let lastCategoryId = loadLastCategoryId();
+
 let currentUser = null;
 let stopCloudSubscription = null;
 let eventListenersRegistered = false;
+let dateRefreshListenersRegistered = false;
 let dayRefreshTimer = null;
 
 function getLocalDayKey(date = new Date()) {
@@ -46,16 +48,18 @@ function setSyncStatus(message, state = "idle") {
 }
 
 function refreshApp() {
+  const currentDate = new Date();
+
   const summary = calculateMonthlySummary(
     transactions,
     monthlyBudgets,
-    new Date(),
+    currentDate,
   );
 
   renderSummary(summary);
 
   const dailyRecommendation =
-    calculateDailyRecommendation(summary, new Date());
+    calculateDailyRecommendation(summary, currentDate);
 
   renderDailyRecommendation(
     dailyRecommendation,
@@ -72,7 +76,77 @@ function refreshApp() {
   );
 }
 
-let lastRenderedDayKey = getLocalDayKey();
+function refreshAppForCurrentDate() {
+  lastRenderedDayKey = getLocalDayKey();
+  refreshApp();
+}
+
+function checkForDayChange() {
+  const currentDayKey = getLocalDayKey();
+
+  if (currentDayKey === lastRenderedDayKey) {
+    return;
+  }
+
+  refreshAppForCurrentDate();
+}
+
+function scheduleNextDayRefresh() {
+  if (dayRefreshTimer !== null) {
+    window.clearTimeout(dayRefreshTimer);
+  }
+
+  const now = new Date();
+
+  const nextMidnight = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1,
+    0,
+    0,
+    1,
+    0,
+  );
+
+  const delay = Math.max(
+    1000,
+    nextMidnight.getTime() - now.getTime(),
+  );
+
+  dayRefreshTimer = window.setTimeout(() => {
+    refreshAppForCurrentDate();
+    scheduleNextDayRefresh();
+  }, delay);
+}
+
+function registerDateRefreshListeners() {
+  if (dateRefreshListenersRegistered) {
+    return;
+  }
+
+  dateRefreshListenersRegistered = true;
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      return;
+    }
+
+    checkForDayChange();
+    scheduleNextDayRefresh();
+  });
+
+  window.addEventListener("focus", () => {
+    checkForDayChange();
+    scheduleNextDayRefresh();
+  });
+
+  window.addEventListener("pageshow", () => {
+    checkForDayChange();
+    scheduleNextDayRefresh();
+  });
+
+  scheduleNextDayRefresh();
+}
 
 function handleEditTransaction(transactionId) {
   const transaction = transactions.find(
@@ -100,12 +174,18 @@ async function handleDeleteTransaction(transactionId) {
 
   try {
     setSyncStatus("Удаляем…", "syncing");
+
     await deleteCloudTransaction(transactionId);
+
     setSyncStatus("Синхронизировано", "online");
   } catch (error) {
     console.error(error);
+
     setSyncStatus("Ошибка синхронизации", "error");
-    showError(error.message || "Не удалось удалить операцию");
+
+    showError(
+      error.message || "Не удалось удалить операцию",
+    );
   }
 }
 
@@ -135,18 +215,29 @@ async function handleTransactionSubmit(event) {
       transaction = updatedTransactions.find(
         (item) => item.id === values.id,
       );
+
+      if (!transaction) {
+        throw new Error("Не удалось обновить запись");
+      }
     } else {
       transaction = createTransaction(values);
     }
 
     setSyncStatus("Сохраняем…", "syncing");
-    await saveCloudTransaction(transaction, currentUser);
+
+    await saveCloudTransaction(
+      transaction,
+      currentUser,
+    );
 
     closeTransactionDialog();
+
     setSyncStatus("Синхронизировано", "online");
   } catch (error) {
     console.error(error);
+
     setSyncStatus("Ошибка синхронизации", "error");
+
     showError(
       error.message || "Не удалось сохранить запись",
     );
@@ -171,7 +262,11 @@ async function handleCategorySubmit(event) {
     const category = createCategory(name);
 
     setSyncStatus("Сохраняем…", "syncing");
-    await saveCloudCategory(category, currentUser);
+
+    await saveCloudCategory(
+      category,
+      currentUser,
+    );
 
     lastCategoryId = category.id;
     saveLastCategoryId(lastCategoryId);
@@ -187,11 +282,16 @@ async function handleCategorySubmit(event) {
     );
 
     closeCategoryDialog();
+
     setSyncStatus("Синхронизировано", "online");
   } catch (error) {
     console.error(error);
+
     setSyncStatus("Ошибка синхронизации", "error");
-    showError(error.message || "Не удалось создать категорию");
+
+    showError(
+      error.message || "Не удалось создать категорию",
+    );
   }
 }
 
@@ -213,6 +313,7 @@ async function handleBudgetSubmit(event) {
     const currentMonthKey = getMonthKey(new Date());
 
     setSyncStatus("Сохраняем…", "syncing");
+
     await saveCloudBudget(
       currentMonthKey,
       budget,
@@ -220,11 +321,16 @@ async function handleBudgetSubmit(event) {
     );
 
     closeBudgetDialog();
+
     setSyncStatus("Синхронизировано", "online");
   } catch (error) {
     console.error(error);
+
     setSyncStatus("Ошибка синхронизации", "error");
-    showError(error.message || "Не удалось сохранить бюджет");
+
+    showError(
+      error.message || "Не удалось сохранить бюджет",
+    );
   }
 }
 
@@ -243,12 +349,18 @@ async function handleClearAll() {
 
   try {
     setSyncStatus("Удаляем операции…", "syncing");
+
     await clearCloudTransactions();
+
     setSyncStatus("Синхронизировано", "online");
   } catch (error) {
     console.error(error);
+
     setSyncStatus("Ошибка синхронизации", "error");
-    showError(error.message || "Не удалось очистить операции");
+
+    showError(
+      error.message || "Не удалось очистить операции",
+    );
   }
 }
 
@@ -269,7 +381,7 @@ function registerEventListeners() {
 
   document
     .getElementById("transaction-category")
-    .addEventListener("change", (event) => {
+    ?.addEventListener("change", (event) => {
       renderQuickCategories(
         categories,
         event.target.value,
@@ -278,16 +390,17 @@ function registerEventListeners() {
 
   document
     .getElementById("open-record-dialog-button")
-    .addEventListener("click", openRecordDialog);
+    ?.addEventListener("click", openRecordDialog);
 
   document
     .getElementById("close-record-dialog")
-    .addEventListener("click", closeRecordDialog);
+    ?.addEventListener("click", closeRecordDialog);
 
   document
     .getElementById("record-expense-button")
-    .addEventListener("click", () => {
+    ?.addEventListener("click", () => {
       closeRecordDialog();
+
       openTransactionDialog(
         "expense",
         categories,
@@ -298,15 +411,20 @@ function registerEventListeners() {
 
   document
     .getElementById("record-income-button")
-    .addEventListener("click", () => {
+    ?.addEventListener("click", () => {
       closeRecordDialog();
-      openTransactionDialog("income", categories);
+
+      openTransactionDialog(
+        "income",
+        categories,
+      );
     });
 
   document
     .getElementById("open-budget-button")
-    .addEventListener("click", () => {
+    ?.addEventListener("click", () => {
       const currentMonthKey = getMonthKey(new Date());
+
       const currentBudget =
         Number(monthlyBudgets[currentMonthKey]) || 0;
 
@@ -315,53 +433,77 @@ function registerEventListeners() {
 
   document
     .getElementById("close-transaction-dialog")
-    .addEventListener("click", closeTransactionDialog);
+    ?.addEventListener(
+      "click",
+      closeTransactionDialog,
+    );
 
   document
     .getElementById("close-budget-dialog")
-    .addEventListener("click", closeBudgetDialog);
+    ?.addEventListener(
+      "click",
+      closeBudgetDialog,
+    );
 
   document
     .getElementById("transaction-form")
-    .addEventListener("submit", handleTransactionSubmit);
+    ?.addEventListener(
+      "submit",
+      handleTransactionSubmit,
+    );
 
   document
     .getElementById("budget-form")
-    .addEventListener("submit", handleBudgetSubmit);
+    ?.addEventListener(
+      "submit",
+      handleBudgetSubmit,
+    );
 
   document
     .getElementById("clear-all-button")
-    .addEventListener("click", handleClearAll);
+    ?.addEventListener(
+      "click",
+      handleClearAll,
+    );
 
   document
     .getElementById("transaction-dialog")
-    .addEventListener(
+    ?.addEventListener(
       "click",
       closeDialogWhenBackdropClicked,
     );
 
   document
     .getElementById("budget-dialog")
-    .addEventListener(
+    ?.addEventListener(
       "click",
       closeDialogWhenBackdropClicked,
     );
 
   document
     .getElementById("add-category-button")
-    .addEventListener("click", openCategoryDialog);
+    ?.addEventListener(
+      "click",
+      openCategoryDialog,
+    );
 
   document
     .getElementById("category-form")
-    .addEventListener("submit", handleCategorySubmit);
+    ?.addEventListener(
+      "submit",
+      handleCategorySubmit,
+    );
 
   document
     .getElementById("close-category-dialog")
-    .addEventListener("click", closeCategoryDialog);
+    ?.addEventListener(
+      "click",
+      closeCategoryDialog,
+    );
 
   document
     .getElementById("record-dialog")
-    .addEventListener(
+    ?.addEventListener(
       "click",
       closeDialogWhenBackdropClicked,
     );
@@ -370,15 +512,21 @@ function registerEventListeners() {
 function stopCloudSession() {
   stopCloudSubscription?.();
   stopCloudSubscription = null;
+
   currentUser = null;
+
   setSyncStatus("Не подключено", "idle");
 }
 
 async function startCloudSession(user) {
   stopCloudSession();
+
   currentUser = user;
 
-  setSyncStatus("Подключаем облако…", "syncing");
+  setSyncStatus(
+    "Подключаем облако…",
+    "syncing",
+  );
 
   try {
     await ensureFamilyDocument();
@@ -394,31 +542,54 @@ async function startCloudSession(user) {
     stopCloudSubscription = subscribeToFamilyData({
       onTransactions(nextTransactions) {
         transactions = nextTransactions;
+
         saveTransactions(transactions);
         refreshApp();
-        setSyncStatus("Синхронизировано", "online");
+
+        setSyncStatus(
+          "Синхронизировано",
+          "online",
+        );
       },
 
       onCategories(nextCategories) {
-        categories = nextCategories.length > 0
-          ? nextCategories
-          : [...DEFAULT_CATEGORIES];
+        categories =
+          nextCategories.length > 0
+            ? nextCategories
+            : [...DEFAULT_CATEGORIES];
 
         saveCategories(categories);
         refreshApp();
-        setSyncStatus("Синхронизировано", "online");
+
+        setSyncStatus(
+          "Синхронизировано",
+          "online",
+        );
       },
 
       onBudgets(nextBudgets) {
         monthlyBudgets = nextBudgets;
+
         saveMonthlyBudgets(monthlyBudgets);
         refreshApp();
-        setSyncStatus("Синхронизировано", "online");
+
+        setSyncStatus(
+          "Синхронизировано",
+          "online",
+        );
       },
 
       onError(error) {
-        console.error("Firestore subscription error:", error);
-        setSyncStatus("Ошибка доступа к облаку", "error");
+        console.error(
+          "Firestore subscription error:",
+          error,
+        );
+
+        setSyncStatus(
+          "Ошибка доступа к облаку",
+          "error",
+        );
+
         showError(
           error.code === "permission-denied"
             ? "Firestore отклонил доступ. Проверьте Rules и документы members."
@@ -427,9 +598,20 @@ async function startCloudSession(user) {
       },
     });
   } catch (error) {
-    console.error("Не удалось запустить облачную сессию:", error);
-    setSyncStatus("Облако не подключено", "error");
-    showError(error.message || "Не удалось подключить Firestore");
+    console.error(
+      "Не удалось запустить облачную сессию:",
+      error,
+    );
+
+    setSyncStatus(
+      "Облако не подключено",
+      "error",
+    );
+
+    showError(
+      error.message ||
+        "Не удалось подключить Firestore",
+    );
   }
 }
 
