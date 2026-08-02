@@ -47,6 +47,10 @@ try {
   db = getFirestore(firebaseApp);
 }
 
+/*
+ * Дожидаемся включения локального хранения сессии,
+ * прежде чем разрешать пользователю входить.
+ */
 const authPersistenceReady = setPersistence(
   auth,
   browserLocalPersistence,
@@ -67,18 +71,33 @@ const initialAuthPromise = new Promise((resolve) => {
   resolveInitialAuth = resolve;
 });
 
-function showAuthenticatedInterface(user) {
-  const loginScreen = document.getElementById("login-screen");
-  const app = document.querySelector(".app");
-  const floatingButton = document.getElementById(
-    "open-record-dialog-button",
-  );
-  const userEmail = document.getElementById(
-    "current-user-email",
-  );
+function getInterfaceElements() {
+  return {
+    loginScreen: document.getElementById("login-screen"),
+    app: document.querySelector(".app"),
+    floatingButton: document.getElementById(
+      "open-record-dialog-button",
+    ),
+    userEmail: document.getElementById(
+      "current-user-email",
+    ),
+  };
+}
+
+function updateAuthInterface(user) {
+  const {
+    loginScreen,
+    app,
+    floatingButton,
+    userEmail,
+  } = getInterfaceElements();
 
   const isAuthenticated = Boolean(user);
 
+  /*
+   * Управляем отображением напрямую.
+   * CSS-классы остаются дополнительным механизмом.
+   */
   if (loginScreen) {
     loginScreen.hidden = isAuthenticated;
   }
@@ -123,25 +142,18 @@ function getReadableAuthError(error) {
       return "Не удалось подключиться к интернету";
 
     case "auth/unauthorized-domain":
-      return "Адрес сайта не разрешён в Firebase";
+      return "Этот адрес сайта не разрешён в Firebase";
+
+    case "auth/operation-not-allowed":
+      return "Вход по email и паролю не включён в Firebase";
 
     default:
-      console.error("Ошибка Firebase Auth:", error);
+      console.error("Firebase Auth error:", error);
+
       return `Не удалось выполнить вход: ${
         error?.code || "неизвестная ошибка"
       }`;
   }
-}
-
-function showLoginError(message = "") {
-  const element = document.getElementById("login-error");
-
-  if (!element) {
-    return;
-  }
-
-  element.textContent = message;
-  element.hidden = !message;
 }
 
 function setAuthLoading(isLoading) {
@@ -154,7 +166,22 @@ function setAuthLoading(isLoading) {
   }
 
   button.disabled = isLoading;
-  button.textContent = isLoading ? "Входим…" : "Войти";
+  button.textContent = isLoading
+    ? "Входим…"
+    : "Войти";
+}
+
+function showLoginError(message = "") {
+  const element = document.getElementById(
+    "login-error",
+  );
+
+  if (!element) {
+    return;
+  }
+
+  element.textContent = message;
+  element.hidden = !message;
 }
 
 async function handleLoginSubmit(event) {
@@ -163,26 +190,37 @@ async function handleLoginSubmit(event) {
   showLoginError("");
   setAuthLoading(true);
 
-  const email = document
-    .getElementById("login-email")
-    .value
-    .trim();
+  const emailInput =
+    document.getElementById("login-email");
 
-  const password = document.getElementById(
-    "login-password",
-  ).value;
+  const passwordInput =
+    document.getElementById("login-password");
+
+  const email = emailInput?.value.trim() || "";
+  const password = passwordInput?.value || "";
 
   try {
     await authPersistenceReady;
 
-    await signInWithEmailAndPassword(
-      auth,
-      email,
-      password,
-    );
+    const userCredential =
+      await signInWithEmailAndPassword(
+        auth,
+        email,
+        password,
+      );
 
-    document.getElementById("login-password").value = "";
+    /*
+     * Не ждём только onAuthStateChanged:
+     * сразу переключаем интерфейс после успешного входа.
+     */
+    currentAuthUser = userCredential.user;
+    updateAuthInterface(userCredential.user);
+
+    if (passwordInput) {
+      passwordInput.value = "";
+    }
   } catch (error) {
+    console.error("Ошибка входа:", error);
     showLoginError(getReadableAuthError(error));
   } finally {
     setAuthLoading(false);
@@ -192,6 +230,9 @@ async function handleLoginSubmit(event) {
 async function handleLogout() {
   try {
     await signOut(auth);
+
+    currentAuthUser = null;
+    updateAuthInterface(null);
   } catch (error) {
     console.error("Не удалось выйти:", error);
   }
@@ -208,19 +249,33 @@ function registerAuthListeners() {
 
   document
     .getElementById("login-form")
-    ?.addEventListener("submit", handleLoginSubmit);
+    ?.addEventListener(
+      "submit",
+      handleLoginSubmit,
+    );
 
   document
     .getElementById("logout-button")
-    ?.addEventListener("click", handleLogout);
+    ?.addEventListener(
+      "click",
+      handleLogout,
+    );
 }
 
+/*
+ * Главный источник состояния авторизации.
+ */
 onAuthStateChanged(
   auth,
-  (user) => {
-    currentAuthUser = user;
 
-    showAuthenticatedInterface(user);
+  (user) => {
+    console.log(
+      "Firebase Auth:",
+      user ? `вход выполнен: ${user.email}` : "гость",
+    );
+
+    currentAuthUser = user;
+    updateAuthInterface(user);
 
     if (!initialAuthResolved) {
       initialAuthResolved = true;
@@ -228,18 +283,28 @@ onAuthStateChanged(
     }
 
     authSubscribers.forEach((subscriber) => {
-      subscriber(user);
+      try {
+        subscriber(user);
+      } catch (error) {
+        console.error(
+          "Ошибка обработчика авторизации:",
+          error,
+        );
+      }
     });
   },
+
   (error) => {
     console.error(
-      "Ошибка проверки Firebase-сессии:",
+      "Ошибка восстановления Firebase-сессии:",
       error,
     );
 
-    showAuthenticatedInterface(null);
+    currentAuthUser = null;
+    updateAuthInterface(null);
+
     showLoginError(
-      "Не удалось проверить авторизацию. Обновите страницу.",
+      "Не удалось проверить сессию. Обновите страницу.",
     );
 
     if (!initialAuthResolved) {
@@ -264,11 +329,22 @@ function subscribeToAuth(callback) {
 if (document.readyState === "loading") {
   document.addEventListener(
     "DOMContentLoaded",
-    registerAuthListeners,
+    () => {
+      registerAuthListeners();
+
+      /*
+       * Если состояние Firebase уже определилось до загрузки DOM,
+       * применяем его к только что появившимся элементам.
+       */
+      if (initialAuthResolved) {
+        updateAuthInterface(currentAuthUser);
+      }
+    },
     { once: true },
   );
 } else {
   registerAuthListeners();
+  updateAuthInterface(currentAuthUser);
 }
 
 export {

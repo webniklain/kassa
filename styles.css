@@ -2260,3 +2260,12 @@ body.is-authenticated .login-screen {
 [hidden] {
   display: none !important;
 }
+
+body.is-guest .app,
+body.is-guest .floating-record-button {
+  display: none !important;
+}
+
+body.is-authenticated .login-screen {
+  display: none !important;
+}
