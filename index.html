@@ -89,12 +89,13 @@
     </section>
 
     <section class="actions">
-      <button id="add-expense-button" class="action-button expense-button" type="button">
-        − Добавить расход
-      </button>
-
-      <button id="add-income-button" class="action-button income-button" type="button">
-        + Добавить приход
+      <button
+        id="open-record-dialog-button"
+        class="record-button"
+        type="button"
+      >
+        <span class="record-button-icon">＋</span>
+        <span>Записать</span>
       </button>
     </section>
 
@@ -111,6 +112,40 @@
       </div>
     </section>
   </main>
+
+  <dialog id="record-dialog" class="dialog record-dialog">
+    <div class="record-dialog-content">
+      <div class="dialog-header">
+        <h2>Что записываем?</h2>
+
+        <button
+          id="close-record-dialog"
+          class="icon-button"
+          type="button"
+        >
+          ✕
+        </button>
+      </div>
+
+      <button
+        id="record-expense-button"
+        class="record-type-button record-type-button--expense"
+        type="button"
+      >
+        <span>−</span>
+        <strong>Расход</strong>
+      </button>
+
+      <button
+        id="record-income-button"
+        class="record-type-button record-type-button--income"
+        type="button"
+      >
+        <span>+</span>
+        <strong>Приход</strong>
+      </button>
+    </div>
+  </dialog>
 
   <dialog id="transaction-dialog" class="dialog">
     <form id="transaction-form" method="dialog">
@@ -144,6 +179,11 @@
 
       <div id="category-field" class="field">
         <span>Категория</span>
+
+        <div
+          id="quick-categories"
+          class="quick-categories"
+        ></div>        
 
         <div class="category-row">
           <select id="transaction-category" required></select>

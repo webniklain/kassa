@@ -141,6 +141,54 @@ function renderCategoryOptions(categories, selectedCategoryId = "") {
   });
 }
 
+function renderQuickCategories(
+  categories,
+  selectedCategoryId = "",
+) {
+  const container = document.getElementById(
+    "quick-categories",
+  );
+
+  const select = document.getElementById(
+    "transaction-category",
+  );
+
+  if (!container || !select) {
+    return;
+  }
+
+  container.innerHTML = "";
+
+  const quickCategories = categories
+    .filter((category) => !category.isArchived)
+    .slice(0, 4);
+
+  quickCategories.forEach((category) => {
+    const button = document.createElement("button");
+
+    button.type = "button";
+    button.className = "quick-category-button";
+    button.dataset.categoryId = category.id;
+    button.textContent =
+      `${category.icon || "📦"} ${category.name}`;
+
+    if (category.id === selectedCategoryId) {
+      button.classList.add("is-selected");
+    }
+
+    button.addEventListener("click", () => {
+      select.value = category.id;
+
+      renderQuickCategories(
+        categories,
+        category.id,
+      );
+    });
+
+    container.append(button);
+  });
+}
+
 function getTransactionDisplayTitle(transaction, categories) {
   if (transaction.type === "income") {
     return transaction.description || "Приход";
@@ -261,6 +309,14 @@ function renderTransactions(
   });
 }
 
+function openRecordDialog() {
+  document.getElementById("record-dialog")?.showModal();
+}
+
+function closeRecordDialog() {
+  document.getElementById("record-dialog")?.close();
+}
+
 function openTransactionDialog(
   type,
   categories,
@@ -295,11 +351,24 @@ function openTransactionDialog(
   dateInput.value =
     transaction?.date || getTodayDateInputValue();
 
-  if (actualType === "expense") {
+if (actualType === "expense") {
     categoryField.hidden = false;
+
+    const selectedCategoryId =
+      transaction?.categoryId ||
+      categories.find(
+        (category) => !category.isArchived,
+      )?.id ||
+      "";
+
     renderCategoryOptions(
       categories,
-      transaction?.categoryId || "",
+      selectedCategoryId,
+    );
+
+    renderQuickCategories(
+      categories,
+      selectedCategoryId,
     );
   } else {
     categoryField.hidden = true;
@@ -315,9 +384,14 @@ function openTransactionDialog(
     amountInput.value = transaction.amount;
     descriptionInput.value = transaction.description || "";
 
-    if (actualType === "expense") {
-      categoryInput.value = transaction.categoryId;
-    }
+  if (actualType === "expense") {
+    categoryInput.value = transaction.categoryId;
+
+    renderQuickCategories(
+      categories,
+      transaction.categoryId,
+    );
+  }
   } else {
     dialogTitle.textContent =
       actualType === "expense"

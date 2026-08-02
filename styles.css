@@ -420,6 +420,146 @@ h2 {
   transform: scale(1.04);
 }
 
+.actions {
+  display: block;
+  margin: 18px 0 26px;
+}
+
+.record-button {
+  display: flex;
+  width: 100%;
+  min-height: 60px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 20px;
+  background: #111827;
+  color: #ffffff;
+  font-size: 17px;
+  font-weight: 800;
+  box-shadow: 0 14px 32px rgb(15 23 42 / 18%);
+}
+
+.record-button:active {
+  transform: scale(0.985);
+}
+
+.record-button-icon {
+  font-size: 26px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.record-dialog-content {
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+}
+
+.record-type-button {
+  display: flex;
+  min-height: 62px;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border: 0;
+  border-radius: 18px;
+  text-align: left;
+}
+
+.record-type-button span {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 12px;
+  font-size: 24px;
+}
+
+.record-type-button strong {
+  font-size: 17px;
+}
+
+.record-type-button--expense {
+  background: #fff1f1;
+  color: #b93434;
+}
+
+.record-type-button--expense span {
+  background: #ffffff;
+}
+
+.record-type-button--income {
+  background: #edf9f2;
+  color: #16864b;
+}
+
+.record-type-button--income span {
+  background: #ffffff;
+}
+
+.quick-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.quick-category-button {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 12px;
+  border: 1px solid #dfe3ea;
+  border-radius: 14px;
+  background: #f7f8fa;
+  color: #374151;
+  font-size: 14px;
+  font-weight: 700;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease,
+    transform 100ms ease;
+}
+
+.quick-category-button:active {
+  transform: scale(0.97);
+}
+
+.quick-category-button.is-selected {
+  border-color: #111827;
+  background: #111827;
+  color: #ffffff;
+}
+
+.category-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.secondary-button {
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 1px solid #d9dee7;
+  border-radius: 14px;
+  background: #f7f8fa;
+  color: #374151;
+  font-weight: 700;
+}
+
+@media (max-width: 390px) {
+  .category-row {
+    grid-template-columns: 1fr;
+  }
+
+  .secondary-button {
+    width: 100%;
+  }
+}
+
 @media (max-width: 390px) {
   .period-grid {
     grid-template-columns: 1fr;

@@ -107,6 +107,7 @@ function handleCategorySubmit(event) {
     saveCategories(categories);
 
     renderCategoryOptions(categories, category.id);
+    renderQuickCategories(categories, category.id);
 
     closeCategoryDialog();
   } catch (error) {
@@ -161,14 +162,33 @@ function closeDialogWhenBackdropClicked(event) {
 
 function registerEventListeners() {
   document
-    .getElementById("add-expense-button")
+    .getElementById("transaction-category")
+    .addEventListener("change", (event) => {
+      renderQuickCategories(
+        categories,
+        event.target.value,
+      );
+    });
+  
+  document
+    .getElementById("open-record-dialog-button")
+    .addEventListener("click", openRecordDialog);
+
+  document
+    .getElementById("close-record-dialog")
+    .addEventListener("click", closeRecordDialog);
+
+  document
+    .getElementById("record-expense-button")
     .addEventListener("click", () => {
+      closeRecordDialog();
       openTransactionDialog("expense", categories);
     });
 
   document
-    .getElementById("add-income-button")
+    .getElementById("record-income-button")
     .addEventListener("click", () => {
+      closeRecordDialog();
       openTransactionDialog("income", categories);
     });
 
@@ -227,6 +247,10 @@ function registerEventListeners() {
   document
     .getElementById("close-category-dialog")
     .addEventListener("click", closeCategoryDialog);
+
+  document
+    .getElementById("record-dialog")
+    .addEventListener("click", closeDialogWhenBackdropClicked);
 }
 
 function startApp() {
