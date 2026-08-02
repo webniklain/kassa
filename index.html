@@ -28,17 +28,29 @@
 
     <section class="summary-card">
       <div class="summary-row">
-        <span>Бюджет месяца</span>
+        <div class="summary-label">
+          <span class="summary-icon summary-icon--budget">▣</span>
+          <span>Бюджет месяца</span>
+        </div>
+
         <strong id="budget-total">0 GEL</strong>
       </div>
 
       <div class="summary-row income">
-        <span>Приходы</span>
+        <div class="summary-label">
+          <span class="summary-icon summary-icon--income">↓</span>
+          <span>Приходы</span>
+        </div>
+
         <strong id="income-total">+0 GEL</strong>
       </div>
 
       <div class="summary-row expense">
-        <span>Расходы</span>
+        <div class="summary-label">
+          <span class="summary-icon summary-icon--expense">↑</span>
+          <span>Расходы</span>
+        </div>
+
         <strong id="expense-total">−0 GEL</strong>
       </div>
 
@@ -54,49 +66,58 @@
         id="daily-recommendation"
         class="daily-recommendation"
       >
-        <span class="daily-recommendation-label">
-          Сегодня можно потратить ещё
-        </span>
+        <div class="daily-recommendation-content">
+          <span class="daily-recommendation-label">
+            Сегодня можно потратить ещё
+          </span>
 
-        <strong id="daily-remaining">
-          0 GEL
-        </strong>
+          <strong id="daily-remaining">
+            0 GEL
+          </strong>
 
-        <p id="daily-message">
-          Сначала укажите бюджет месяца
-        </p>
+          <p id="daily-message">
+            Сначала укажите бюджет месяца
+          </p>
 
-        <small id="days-left">
-          До конца месяца: 0 дней
-        </small>
+          <small id="days-left">
+            До конца месяца: 0 дней
+          </small>
+        </div>
+
+        <div class="daily-progress" aria-hidden="true">
+          <div class="daily-progress-inner">
+            <span>✓</span>
+          </div>
+        </div>
       </section>
 
     <section class="period-grid">
-      <article class="period-card">
-        <span>Сегодня</span>
-        <strong id="today-expenses">0 GEL</strong>
+      <article class="period-card period-card--today">
+        <span class="period-icon">▣</span>
+
+        <div class="period-content">
+          <span>Сегодня</span>
+          <strong id="today-expenses">0 GEL</strong>
+        </div>
       </article>
 
-      <article class="period-card">
-        <span>За 7 дней</span>
-        <strong id="week-expenses">0 GEL</strong>
+      <article class="period-card period-card--week">
+        <span class="period-icon">▣</span>
+
+        <div class="period-content">
+          <span>За 7 дней</span>
+          <strong id="week-expenses">0 GEL</strong>
+        </div>
       </article>
 
-      <article class="period-card">
-        <span>За месяц</span>
-        <strong id="month-expenses">0 GEL</strong>
-      </article>
-    </section>
+      <article class="period-card period-card--month">
+        <span class="period-icon">▣</span>
 
-    <section class="actions">
-      <button
-        id="open-record-dialog-button"
-        class="record-button"
-        type="button"
-      >
-        <span class="record-button-icon">＋</span>
-        <span>Записать</span>
-      </button>
+        <div class="period-content">
+          <span>За месяц</span>
+          <strong id="month-expenses">0 GEL</strong>
+        </div>
+      </article>
     </section>
 
     <section class="history-section">
@@ -283,6 +304,14 @@
     </form>
   </dialog>
 
+  <button
+    id="open-record-dialog-button"
+    class="floating-record-button"
+    type="button"
+    aria-label="Записать операцию"
+  >
+    <span aria-hidden="true">+</span>
+  </button>
   <script src="storage.js"></script>
   <script src="logic.js"></script>
   <script src="ui.js"></script>

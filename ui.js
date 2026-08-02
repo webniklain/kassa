@@ -95,6 +95,15 @@ function renderDailyRecommendation(recommendation, hasBudget) {
     return;
   }
 
+  const progress = document.querySelector(".daily-progress");
+
+if (progress) {
+  progress.style.setProperty(
+    "--progress",
+    `${recommendation.remainingPercent * 3.6}deg`,
+  );
+}
+
   card.classList.add(
     `daily-recommendation--${recommendation.status}`,
   );

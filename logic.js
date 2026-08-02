@@ -274,11 +274,20 @@ function calculateDailyRecommendation(summary, date = new Date()) {
       "Сегодня лучше быть осторожнее с расходами";
   }
 
+  const remainingPercent =
+  dailyLimit > 0
+    ? Math.max(
+        0,
+        Math.min(100, (remainingToday / dailyLimit) * 100),
+      )
+    : 0;
+
   return {
     daysLeft,
     dailyLimit: Math.max(0, dailyLimit),
     spentToday,
     remainingToday: Math.max(0, remainingToday),
+    remainingPercent,
     status,
     message,
   };
