@@ -44,6 +44,76 @@ function renderSummary(summary) {
   setText("month-expenses", formatMoney(summary.monthExpenses));
 }
 
+function getDaysWord(number) {
+  const absoluteNumber = Math.abs(number);
+  const lastTwoDigits = absoluteNumber % 100;
+  const lastDigit = absoluteNumber % 10;
+
+  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) {
+    return "дней";
+  }
+
+  if (lastDigit === 1) {
+    return "день";
+  }
+
+  if (lastDigit >= 2 && lastDigit <= 4) {
+    return "дня";
+  }
+
+  return "дней";
+}
+
+function renderDailyRecommendation(recommendation, hasBudget) {
+  const card = document.getElementById("daily-recommendation");
+
+  if (!card) {
+    return;
+  }
+
+  card.classList.remove("is-updating");
+  void card.offsetWidth;
+  card.classList.add("is-updating");
+
+  window.setTimeout(() => {
+    card.classList.remove("is-updating");
+  }, 180);
+
+  card.classList.remove(
+    "daily-recommendation--good",
+    "daily-recommendation--warning",
+    "daily-recommendation--danger",
+  );
+
+  if (!hasBudget) {
+    setText("daily-remaining", "—");
+    setText(
+      "daily-message",
+      "Укажите бюджет месяца, чтобы получить рекомендацию",
+    );
+    setText("days-left", "");
+    return;
+  }
+
+  card.classList.add(
+    `daily-recommendation--${recommendation.status}`,
+  );
+
+  setText(
+    "daily-remaining",
+    formatMoney(recommendation.remainingToday),
+  );
+
+  setText("daily-message", recommendation.message);
+
+  setText(
+    "days-left",
+    `До конца месяца: ${recommendation.daysLeft} ${getDaysWord(
+      recommendation.daysLeft,
+    )}`,
+  );
+}
+
 function renderCategoryOptions(categories, selectedCategoryId = "") {
   const select = document.getElementById("transaction-category");
 
@@ -89,6 +159,7 @@ function getTransactionDisplayTitle(transaction, categories) {
 function createTransactionElement(
   transaction,
   categories,
+  onEdit,
   onDelete,
 ) {
   const item = document.createElement("article");
@@ -110,10 +181,7 @@ function createTransactionElement(
 
   main.append(title, meta);
 
-  if (
-    transaction.type === "expense" &&
-    transaction.description
-  ) {
+  if (transaction.description) {
     const description = document.createElement("div");
     description.className = "transaction-note";
     description.textContent = transaction.description;
@@ -130,6 +198,17 @@ function createTransactionElement(
       ? `−${formatMoney(transaction.amount)}`
       : `+${formatMoney(transaction.amount)}`;
 
+  const buttons = document.createElement("div");
+  buttons.className = "transaction-buttons";
+
+  const editButton = document.createElement("button");
+  editButton.className = "edit-button";
+  editButton.type = "button";
+  editButton.textContent = "Изменить";
+  editButton.addEventListener("click", () => {
+    onEdit(transaction.id);
+  });
+
   const deleteButton = document.createElement("button");
   deleteButton.className = "delete-button";
   deleteButton.type = "button";
@@ -138,7 +217,8 @@ function createTransactionElement(
     onDelete(transaction.id);
   });
 
-  side.append(amount, deleteButton);
+  buttons.append(editButton, deleteButton);
+  side.append(amount, buttons);
   item.append(main, side);
 
   return item;
@@ -147,6 +227,7 @@ function createTransactionElement(
 function renderTransactions(
   transactions,
   categories,
+  onEdit,
   onDelete,
 ) {
   const list = document.getElementById("transactions-list");
@@ -173,39 +254,84 @@ function renderTransactions(
       createTransactionElement(
         transaction,
         categories,
+        onEdit,
         onDelete,
       ),
     );
   });
 }
 
-function openTransactionDialog(type, categories) {
+function openTransactionDialog(
+  type,
+  categories,
+  transaction = null,
+) {
   const dialog = document.getElementById("transaction-dialog");
   const form = document.getElementById("transaction-form");
   const typeInput = document.getElementById("transaction-type");
+  const idInput = document.getElementById("transaction-id");
   const dialogTitle = document.getElementById(
     "transaction-dialog-title",
   );
+  const submitButton = document.getElementById(
+    "transaction-submit-button",
+  );
   const categoryField = document.getElementById("category-field");
+  const amountInput = document.getElementById("transaction-amount");
+  const categoryInput = document.getElementById(
+    "transaction-category",
+  );
+  const descriptionInput = document.getElementById(
+    "transaction-description",
+  );
   const dateInput = document.getElementById("transaction-date");
 
   form.reset();
-  typeInput.value = type;
-  dateInput.value = getTodayDateInputValue();
 
-  if (type === "expense") {
-    dialogTitle.textContent = "Записать расход";
+  const actualType = transaction?.type || type;
+
+  typeInput.value = actualType;
+  idInput.value = transaction?.id || "";
+  dateInput.value =
+    transaction?.date || getTodayDateInputValue();
+
+  if (actualType === "expense") {
     categoryField.hidden = false;
-    renderCategoryOptions(categories);
+    renderCategoryOptions(
+      categories,
+      transaction?.categoryId || "",
+    );
   } else {
-    dialogTitle.textContent = "Записать приход";
     categoryField.hidden = true;
+  }
+
+  if (transaction) {
+    dialogTitle.textContent =
+      actualType === "expense"
+        ? "Изменить расход"
+        : "Изменить приход";
+
+    submitButton.textContent = "Сохранить изменения";
+    amountInput.value = transaction.amount;
+    descriptionInput.value = transaction.description || "";
+
+    if (actualType === "expense") {
+      categoryInput.value = transaction.categoryId;
+    }
+  } else {
+    dialogTitle.textContent =
+      actualType === "expense"
+        ? "Записать расход"
+        : "Записать приход";
+
+    submitButton.textContent = "Сохранить";
   }
 
   dialog.showModal();
 
   window.setTimeout(() => {
-    document.getElementById("transaction-amount")?.focus();
+    amountInput.focus();
+    amountInput.select();
   }, 50);
 }
 
@@ -257,6 +383,7 @@ function closeBudgetDialog() {
 
 function getTransactionFormValues() {
   return {
+    id: document.getElementById("transaction-id").value,
     type: document.getElementById("transaction-type").value,
     amount: document.getElementById("transaction-amount").value,
     categoryId:

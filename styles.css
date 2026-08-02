@@ -345,6 +345,81 @@ h2 {
   font-weight: 700;
 }
 
+.daily-recommendation {
+  margin-top: 16px;
+  padding: 22px 20px;
+  border: 1px solid #e5e7eb;
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 14px 40px rgb(15 23 42 / 7%);
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease;
+}
+
+.daily-recommendation-label {
+  display: block;
+  margin-bottom: 6px;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+#daily-remaining {
+  display: block;
+  font-size: clamp(36px, 10vw, 48px);
+  line-height: 1.05;
+  letter-spacing: -1.5px;
+  overflow-wrap: anywhere;
+  transition:
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+#daily-message {
+  margin: 12px 0 0;
+  color: #4b5563;
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+#days-left {
+  display: block;
+  margin-top: 10px;
+  color: #9ca3af;
+  font-size: 13px;
+}
+
+.daily-recommendation--good {
+  border-color: #ccebd9;
+  background: #f4fbf7;
+}
+
+.daily-recommendation--good #daily-remaining {
+  color: #16864b;
+}
+
+.daily-recommendation--warning {
+  border-color: #f2dfaa;
+  background: #fffaf0;
+}
+
+.daily-recommendation--warning #daily-remaining {
+  color: #b7791f;
+}
+
+.daily-recommendation--danger {
+  border-color: #f0caca;
+  background: #fff6f6;
+}
+
+.daily-recommendation--danger #daily-remaining {
+  color: #d14343;
+}
+
+.daily-recommendation.is-updating #daily-remaining {
+  transform: scale(1.04);
+}
+
 @media (max-width: 390px) {
   .period-grid {
     grid-template-columns: 1fr;

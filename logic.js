@@ -197,3 +197,76 @@ function categoryNameExists(categories, name) {
     (category) => category.name.trim().toLowerCase() === normalizedName,
   );
 }
+
+function updateTransactionById(
+  transactions,
+  transactionId,
+  values,
+) {
+  const existingTransaction = transactions.find(
+    (transaction) => transaction.id === transactionId,
+  );
+
+  if (!existingTransaction) {
+    throw new Error("Запись не найдена");
+  }
+
+  const updatedTransaction = createTransaction(values);
+
+  return transactions.map((transaction) => {
+    if (transaction.id !== transactionId) {
+      return transaction;
+    }
+
+    return {
+      ...updatedTransaction,
+      id: existingTransaction.id,
+      createdAt: existingTransaction.createdAt,
+      updatedAt: new Date().toISOString(),
+    };
+  });
+}
+
+function getDaysRemainingInMonth(date = new Date()) {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+
+  const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
+
+  return lastDayOfMonth - date.getDate() + 1;
+}
+
+function calculateDailyRecommendation(summary, date = new Date()) {
+  const daysLeft = getDaysRemainingInMonth(date);
+  const safeBalance = Math.max(0, Number(summary.balance) || 0);
+
+  const dailyLimit =
+    daysLeft > 0
+      ? safeBalance / daysLeft
+      : 0;
+
+  const remainingToday =
+    dailyLimit - Number(summary.todayExpenses || 0);
+
+  let status = "good";
+  let message = "Всё идёт по плану";
+
+  if (summary.balance < 0) {
+    status = "danger";
+    message = "Месячный бюджет уже превышен";
+  } else if (remainingToday <= 0) {
+    status = "danger";
+    message = "Сегодня дневная норма уже использована";
+  } else if (remainingToday < dailyLimit * 0.35) {
+    status = "warning";
+    message = "Сегодня лучше быть осторожнее с расходами";
+  }
+
+  return {
+    daysLeft,
+    dailyLimit,
+    remainingToday: Math.max(0, remainingToday),
+    status,
+    message,
+  };
+}

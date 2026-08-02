@@ -50,6 +50,27 @@
       </div>
     </section>
 
+    <section
+        id="daily-recommendation"
+        class="daily-recommendation"
+      >
+        <span class="daily-recommendation-label">
+          Сегодня можно потратить ещё
+        </span>
+
+        <strong id="daily-remaining">
+          0 GEL
+        </strong>
+
+        <p id="daily-message">
+          Сначала укажите бюджет месяца
+        </p>
+
+        <small id="days-left">
+          До конца месяца: 0 дней
+        </small>
+      </section>
+
     <section class="period-grid">
       <article class="period-card">
         <span>Сегодня</span>
@@ -106,6 +127,7 @@
       </div>
 
       <input id="transaction-type" type="hidden" value="expense" />
+      <input id="transaction-id" type="hidden" value="" />
 
       <label class="field">
         <span>Сумма</span>
@@ -151,7 +173,7 @@
         />
       </label>
 
-      <button class="primary-button" type="submit">
+      <button  id="transaction-submit-button" class="primary-button" type="submit">
         Сохранить
       </button>
     </form>

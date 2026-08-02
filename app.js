@@ -11,12 +11,38 @@ function refreshApp() {
 
   renderSummary(summary);
 
+  const dailyRecommendation =
+    calculateDailyRecommendation(summary, new Date());
+
+  renderDailyRecommendation(
+    dailyRecommendation,
+    summary.budget > 0,
+  );
+
   renderCategoryOptions(categories);
 
   renderTransactions(
     transactions,
     categories,
+    handleEditTransaction,
     handleDeleteTransaction,
+  );
+}
+
+function handleEditTransaction(transactionId) {
+  const transaction = transactions.find(
+    (item) => item.id === transactionId,
+  );
+
+  if (!transaction) {
+    showError("Запись не найдена");
+    return;
+  }
+
+  openTransactionDialog(
+    transaction.type,
+    categories,
+    transaction,
   );
 }
 
@@ -40,17 +66,26 @@ function handleTransactionSubmit(event) {
   event.preventDefault();
 
   try {
-    const transaction = createTransaction(
-      getTransactionFormValues(),
-    );
+    const values = getTransactionFormValues();
 
-    transactions.push(transaction);
+    if (values.id) {
+      transactions = updateTransactionById(
+        transactions,
+        values.id,
+        values,
+      );
+    } else {
+      const transaction = createTransaction(values);
+      transactions.push(transaction);
+    }
+
     saveTransactions(transactions);
-
     closeTransactionDialog();
     refreshApp();
   } catch (error) {
-    showError(error.message || "Не удалось сохранить операцию");
+    showError(
+      error.message || "Не удалось сохранить запись",
+    );
   }
 }
 
