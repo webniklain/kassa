@@ -238,33 +238,46 @@ function getDaysRemainingInMonth(date = new Date()) {
 
 function calculateDailyRecommendation(summary, date = new Date()) {
   const daysLeft = getDaysRemainingInMonth(date);
-  const safeBalance = Math.max(0, Number(summary.balance) || 0);
+
+  const currentBalance = Number(summary.balance) || 0;
+  const spentToday = Number(summary.todayExpenses) || 0;
+
+  /*
+   * Текущий balance уже уменьшен на сегодняшние расходы.
+   * Возвращаем их обратно, чтобы восстановить сумму,
+   * которая была доступна в начале сегодняшнего дня.
+   */
+  const availableAtStartOfToday =
+    currentBalance + spentToday;
 
   const dailyLimit =
     daysLeft > 0
-      ? safeBalance / daysLeft
+      ? availableAtStartOfToday / daysLeft
       : 0;
 
   const remainingToday =
-    dailyLimit - Number(summary.todayExpenses || 0);
+    dailyLimit - spentToday;
 
   let status = "good";
   let message = "Всё идёт по плану";
 
-  if (summary.balance < 0) {
+  if (currentBalance < 0) {
     status = "danger";
     message = "Месячный бюджет уже превышен";
   } else if (remainingToday <= 0) {
     status = "danger";
-    message = "Сегодня дневная норма уже использована";
+    message =
+      "На сегодня дневная норма уже использована";
   } else if (remainingToday < dailyLimit * 0.35) {
     status = "warning";
-    message = "Сегодня лучше быть осторожнее с расходами";
+    message =
+      "Сегодня лучше быть осторожнее с расходами";
   }
 
   return {
     daysLeft,
-    dailyLimit,
+    dailyLimit: Math.max(0, dailyLimit),
+    spentToday,
     remainingToday: Math.max(0, remainingToday),
     status,
     message,

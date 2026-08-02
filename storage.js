@@ -2,6 +2,7 @@ const STORAGE_KEYS = {
   transactions: "kassa-transactions",
   categories: "kassa-categories",
   monthlyBudgets: "kassa-monthly-budgets",
+  lastCategory: "kassa-last-category",
 };
 
 const DEFAULT_CATEGORIES = [
@@ -109,4 +110,17 @@ function saveMonthlyBudgets(monthlyBudgets) {
   }
 
   return writeJson(STORAGE_KEYS.monthlyBudgets, monthlyBudgets);
+}
+
+function loadLastCategoryId() {
+  return localStorage.getItem(STORAGE_KEYS.lastCategory) || "";
+}
+
+function saveLastCategoryId(categoryId) {
+  if (!categoryId) {
+    localStorage.removeItem(STORAGE_KEYS.lastCategory);
+    return;
+  }
+
+  localStorage.setItem(STORAGE_KEYS.lastCategory, categoryId);
 }

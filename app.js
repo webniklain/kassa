@@ -1,6 +1,7 @@
 let transactions = loadTransactions();
 let categories = loadCategories();
 let monthlyBudgets = loadMonthlyBudgets();
+let lastCategoryId = loadLastCategoryId();
 
 function refreshApp() {
   const summary = calculateMonthlySummary(
@@ -67,6 +68,11 @@ function handleTransactionSubmit(event) {
 
   try {
     const values = getTransactionFormValues();
+
+    if (values.type === "expense" && values.categoryId) {
+      lastCategoryId = values.categoryId;
+      saveLastCategoryId(lastCategoryId);
+    }    
 
     if (values.id) {
       transactions = updateTransactionById(
@@ -182,7 +188,12 @@ function registerEventListeners() {
     .getElementById("record-expense-button")
     .addEventListener("click", () => {
       closeRecordDialog();
-      openTransactionDialog("expense", categories);
+      openTransactionDialog(
+        "expense",
+        categories,
+        null,
+        lastCategoryId,
+      );
     });
 
   document

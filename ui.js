@@ -321,25 +321,32 @@ function openTransactionDialog(
   type,
   categories,
   transaction = null,
+  preferredCategoryId = "",
 ) {
   const dialog = document.getElementById("transaction-dialog");
   const form = document.getElementById("transaction-form");
   const typeInput = document.getElementById("transaction-type");
   const idInput = document.getElementById("transaction-id");
+
   const dialogTitle = document.getElementById(
     "transaction-dialog-title",
   );
+
   const submitButton = document.getElementById(
     "transaction-submit-button",
   );
+
   const categoryField = document.getElementById("category-field");
   const amountInput = document.getElementById("transaction-amount");
+
   const categoryInput = document.getElementById(
     "transaction-category",
   );
+
   const descriptionInput = document.getElementById(
     "transaction-description",
   );
+
   const dateInput = document.getElementById("transaction-date");
 
   form.reset();
@@ -351,11 +358,18 @@ function openTransactionDialog(
   dateInput.value =
     transaction?.date || getTodayDateInputValue();
 
-if (actualType === "expense") {
+  if (actualType === "expense") {
     categoryField.hidden = false;
+
+    const preferredCategoryExists = categories.some(
+      (category) =>
+        category.id === preferredCategoryId &&
+        !category.isArchived,
+    );
 
     const selectedCategoryId =
       transaction?.categoryId ||
+      (preferredCategoryExists ? preferredCategoryId : "") ||
       categories.find(
         (category) => !category.isArchived,
       )?.id ||
@@ -384,14 +398,14 @@ if (actualType === "expense") {
     amountInput.value = transaction.amount;
     descriptionInput.value = transaction.description || "";
 
-  if (actualType === "expense") {
-    categoryInput.value = transaction.categoryId;
+    if (actualType === "expense") {
+      categoryInput.value = transaction.categoryId;
 
-    renderQuickCategories(
-      categories,
-      transaction.categoryId,
-    );
-  }
+      renderQuickCategories(
+        categories,
+        transaction.categoryId,
+      );
+    }
   } else {
     dialogTitle.textContent =
       actualType === "expense"
