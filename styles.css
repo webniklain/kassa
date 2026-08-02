@@ -2260,9 +2260,3 @@ body.is-authenticated .login-screen {
 [hidden] {
   display: none !important;
 }
-
-body.auth-loading .login-screen,
-body.auth-loading .app,
-body.auth-loading .floating-record-button {
-  display: none !important;
-}

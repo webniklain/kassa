@@ -1,5 +1,6 @@
-import { initializeApp } from
-  "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+import {
+  initializeApp,
+} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
 
 import {
   browserLocalPersistence,
@@ -8,16 +9,14 @@ import {
   setPersistence,
   signInWithEmailAndPassword,
   signOut,
-} from
-  "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
 
 import {
   getFirestore,
   initializeFirestore,
   persistentLocalCache,
   persistentMultipleTabManager,
-} from
-  "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAR85_qNqaARJMH_a_RVlk6m4AdBE1LrpI",
@@ -41,9 +40,10 @@ try {
   });
 } catch (error) {
   console.warn(
-    "Постоянный офлайн-кэш Firestore недоступен. Используется память вкладки.",
+    "Постоянный кэш Firestore недоступен:",
     error,
   );
+
   db = getFirestore(firebaseApp);
 }
 
@@ -51,8 +51,60 @@ const authPersistenceReady = setPersistence(
   auth,
   browserLocalPersistence,
 ).catch((error) => {
-  console.error("Не удалось сохранить Firebase-сессию:", error);
+  console.error(
+    "Не удалось включить сохранение авторизации:",
+    error,
+  );
 });
+
+const authSubscribers = new Set();
+
+let currentAuthUser = null;
+let initialAuthResolved = false;
+let resolveInitialAuth;
+
+const initialAuthPromise = new Promise((resolve) => {
+  resolveInitialAuth = resolve;
+});
+
+function showAuthenticatedInterface(user) {
+  const loginScreen = document.getElementById("login-screen");
+  const app = document.querySelector(".app");
+  const floatingButton = document.getElementById(
+    "open-record-dialog-button",
+  );
+  const userEmail = document.getElementById(
+    "current-user-email",
+  );
+
+  const isAuthenticated = Boolean(user);
+
+  if (loginScreen) {
+    loginScreen.hidden = isAuthenticated;
+  }
+
+  if (app) {
+    app.hidden = !isAuthenticated;
+  }
+
+  if (floatingButton) {
+    floatingButton.hidden = !isAuthenticated;
+  }
+
+  document.body.classList.toggle(
+    "is-authenticated",
+    isAuthenticated,
+  );
+
+  document.body.classList.toggle(
+    "is-guest",
+    !isAuthenticated,
+  );
+
+  if (userEmail) {
+    userEmail.textContent = user?.email || "";
+  }
+}
 
 function getReadableAuthError(error) {
   switch (error?.code) {
@@ -71,23 +123,14 @@ function getReadableAuthError(error) {
       return "Не удалось подключиться к интернету";
 
     case "auth/unauthorized-domain":
-      return "Этот адрес сайта не разрешён в Firebase Authentication";
+      return "Адрес сайта не разрешён в Firebase";
 
     default:
-      console.error("Firebase Auth error:", error);
-      return "Не удалось выполнить вход";
+      console.error("Ошибка Firebase Auth:", error);
+      return `Не удалось выполнить вход: ${
+        error?.code || "неизвестная ошибка"
+      }`;
   }
-}
-
-function setAuthLoading(isLoading) {
-  const button = document.getElementById("login-submit-button");
-
-  if (!button) {
-    return;
-  }
-
-  button.disabled = isLoading;
-  button.textContent = isLoading ? "Входим…" : "Войти";
 }
 
 function showLoginError(message = "") {
@@ -101,8 +144,22 @@ function showLoginError(message = "") {
   element.hidden = !message;
 }
 
+function setAuthLoading(isLoading) {
+  const button = document.getElementById(
+    "login-submit-button",
+  );
+
+  if (!button) {
+    return;
+  }
+
+  button.disabled = isLoading;
+  button.textContent = isLoading ? "Входим…" : "Войти";
+}
+
 async function handleLoginSubmit(event) {
   event.preventDefault();
+
   showLoginError("");
   setAuthLoading(true);
 
@@ -111,9 +168,9 @@ async function handleLoginSubmit(event) {
     .value
     .trim();
 
-  const password = document
-    .getElementById("login-password")
-    .value;
+  const password = document.getElementById(
+    "login-password",
+  ).value;
 
   try {
     await authPersistenceReady;
@@ -158,75 +215,39 @@ function registerAuthListeners() {
     ?.addEventListener("click", handleLogout);
 }
 
-const authSubscribers = new Set();
-let currentAuthUser = null;
-let initialAuthResolved = false;
-let resolveInitialAuth;
+onAuthStateChanged(
+  auth,
+  (user) => {
+    currentAuthUser = user;
 
-const initialAuthPromise = new Promise((resolve) => {
-  resolveInitialAuth = resolve;
-});
+    showAuthenticatedInterface(user);
 
-onAuthStateChanged(auth, (user) => {
-  currentAuthUser = user;
+    if (!initialAuthResolved) {
+      initialAuthResolved = true;
+      resolveInitialAuth(user);
+    }
 
-  const isAuthenticated = Boolean(user);
+    authSubscribers.forEach((subscriber) => {
+      subscriber(user);
+    });
+  },
+  (error) => {
+    console.error(
+      "Ошибка проверки Firebase-сессии:",
+      error,
+    );
 
-  const loginScreen = document.getElementById(
-    "login-screen",
-  );
+    showAuthenticatedInterface(null);
+    showLoginError(
+      "Не удалось проверить авторизацию. Обновите страницу.",
+    );
 
-  const app = document.querySelector(".app");
-
-  const floatingButton = document.getElementById(
-    "open-record-dialog-button",
-  );
-
-  /*
-   * Управляем видимостью напрямую.
-   * Это надёжнее, чем полагаться только на CSS-классы.
-   */
-  if (loginScreen) {
-    loginScreen.hidden = isAuthenticated;
-  }
-
-  if (app) {
-    app.hidden = !isAuthenticated;
-  }
-
-  if (floatingButton) {
-    floatingButton.hidden = !isAuthenticated;
-  }
-
-  document.body.classList.toggle(
-    "is-authenticated",
-    isAuthenticated,
-  );
-
-  document.body.classList.toggle(
-    "is-guest",
-    !isAuthenticated,
-  );
-
-  document.body.classList.remove("auth-loading");
-
-  const userEmail = document.getElementById(
-    "current-user-email",
-  );
-
-  if (userEmail) {
-    userEmail.textContent = user?.email || "";
-  }
-
-  if (!initialAuthResolved) {
-    initialAuthResolved = true;
-    resolveInitialAuth(user);
-  }
-
-  authSubscribers.forEach((subscriber) => {
-    subscriber(user);
-  });
-});
+    if (!initialAuthResolved) {
+      initialAuthResolved = true;
+      resolveInitialAuth(null);
+    }
+  },
+);
 
 function subscribeToAuth(callback) {
   authSubscribers.add(callback);
