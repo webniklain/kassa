@@ -13,6 +13,9 @@ import {
 
 import {
   getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
 } from
   "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 
@@ -27,9 +30,26 @@ const firebaseConfig = {
 
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
-const db = getFirestore(firebaseApp);
 
-await setPersistence(auth, browserLocalPersistence);
+let db;
+
+try {
+  db = initializeFirestore(firebaseApp, {
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager(),
+    }),
+  });
+} catch (error) {
+  console.warn(
+    "Постоянный офлайн-кэш Firestore недоступен. Используется память вкладки.",
+    error,
+  );
+  db = getFirestore(firebaseApp);
+}
+
+setPersistence(auth, browserLocalPersistence).catch((error) => {
+  console.error("Не удалось сохранить Firebase-сессию:", error);
+});
 
 function getReadableAuthError(error) {
   switch (error?.code) {
@@ -46,6 +66,9 @@ function getReadableAuthError(error) {
 
     case "auth/network-request-failed":
       return "Не удалось подключиться к интернету";
+
+    case "auth/unauthorized-domain":
+      return "Этот адрес сайта не разрешён в Firebase Authentication";
 
     default:
       console.error("Firebase Auth error:", error);
@@ -67,10 +90,12 @@ function setAuthLoading(isLoading) {
 function showLoginError(message = "") {
   const element = document.getElementById("login-error");
 
-  if (element) {
-    element.textContent = message;
-    element.hidden = !message;
+  if (!element) {
+    return;
   }
+
+  element.textContent = message;
+  element.hidden = !message;
 }
 
 async function handleLoginSubmit(event) {
@@ -87,20 +112,10 @@ async function handleLoginSubmit(event) {
     .getElementById("login-password")
     .value;
 
-    try {
-    const userCredential = await signInWithEmailAndPassword(
-        auth,
-        email,
-        password,
-    );
-
-    console.log(
-        "Вход выполнен:",
-        userCredential.user.email,
-    );
-
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
     document.getElementById("login-password").value = "";
-    } catch (error) {
+  } catch (error) {
     showLoginError(getReadableAuthError(error));
   } finally {
     setAuthLoading(false);
@@ -124,18 +139,26 @@ function registerAuthListeners() {
 
   authListenersRegistered = true;
 
-  const loginForm = document.getElementById("login-form");
-  const logoutButton = document.getElementById("logout-button");
+  document
+    .getElementById("login-form")
+    ?.addEventListener("submit", handleLoginSubmit);
 
-  loginForm?.addEventListener("submit", handleLoginSubmit);
-  logoutButton?.addEventListener("click", handleLogout);
+  document
+    .getElementById("logout-button")
+    ?.addEventListener("click", handleLogout);
 }
 
+const authSubscribers = new Set();
+let currentAuthUser = null;
+let initialAuthResolved = false;
+let resolveInitialAuth;
+
+const initialAuthPromise = new Promise((resolve) => {
+  resolveInitialAuth = resolve;
+});
+
 onAuthStateChanged(auth, (user) => {
-  console.log(
-    "Состояние Firebase Auth:",
-    user ? `выполнен вход: ${user.email}` : "гость",
-  );
+  currentAuthUser = user;
 
   document.body.classList.toggle(
     "is-authenticated",
@@ -155,20 +178,27 @@ onAuthStateChanged(auth, (user) => {
     userEmail.textContent = user?.email || "";
   }
 
-  window.dispatchEvent(
-    new CustomEvent("kassa-auth-changed", {
-      detail: { user },
-    }),
-  );
+  if (!initialAuthResolved) {
+    initialAuthResolved = true;
+    resolveInitialAuth(user);
+  }
+
+  authSubscribers.forEach((subscriber) => {
+    subscriber(user);
+  });
 });
 
-window.KassaFirebase = {
-  auth,
-  db,
-  getCurrentUser() {
-    return auth.currentUser;
-  },
-};
+function subscribeToAuth(callback) {
+  authSubscribers.add(callback);
+
+  if (initialAuthResolved) {
+    callback(currentAuthUser);
+  }
+
+  return () => {
+    authSubscribers.delete(callback);
+  };
+}
 
 if (document.readyState === "loading") {
   document.addEventListener(
@@ -179,3 +209,10 @@ if (document.readyState === "loading") {
 } else {
   registerAuthListeners();
 }
+
+export {
+  auth,
+  db,
+  initialAuthPromise,
+  subscribeToAuth,
+};

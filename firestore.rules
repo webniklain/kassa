@@ -1,0 +1,42 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isFamilyMember(familyId) {
+      return signedIn()
+        && exists(
+          /databases/$(database)/documents/families/$(familyId)/members/$(request.auth.uid)
+        );
+    }
+
+    match /families/{familyId} {
+      allow read: if isFamilyMember(familyId);
+      allow write: if false;
+
+      match /members/{memberId} {
+        allow read: if isFamilyMember(familyId);
+        allow write: if false;
+      }
+
+      match /budgets/{monthId} {
+        allow read, write: if isFamilyMember(familyId);
+      }
+
+      match /categories/{categoryId} {
+        allow read, write: if isFamilyMember(familyId);
+      }
+
+      match /transactions/{transactionId} {
+        allow read, write: if isFamilyMember(familyId);
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

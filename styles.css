@@ -2195,3 +2195,63 @@ body.is-authenticated .login-screen {
 .logout-button {
   color: #ff7680;
 }
+/* ==================================================
+   CLOUD SYNC STATUS
+   ================================================== */
+
+.header-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sync-status {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #11141a;
+  color: #8d95a3;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow:
+    inset 3px 3px 7px rgb(0 0 0 / 65%),
+    inset -2px -2px 5px rgb(255 255 255 / 3%);
+}
+
+.sync-status::before {
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  content: "";
+}
+
+.sync-status[data-state="online"] {
+  color: #52f06a;
+}
+
+.sync-status[data-state="syncing"] {
+  color: #ffb13b;
+}
+
+.sync-status[data-state="error"] {
+  color: #ff5966;
+}
+
+@media (max-width: 430px) {
+  .header-tools {
+    align-items: flex-end;
+    flex-direction: column-reverse;
+    gap: 7px;
+  }
+
+  .sync-status {
+    max-width: 105px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}

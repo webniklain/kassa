@@ -1,7 +1,38 @@
+import {
+  initialAuthPromise,
+  subscribeToAuth,
+} from "./firebase.js";
+
+import {
+  clearCloudTransactions,
+  deleteCloudTransaction,
+  ensureFamilyDocument,
+  migrateLocalDataToCloud,
+  saveCloudBudget,
+  saveCloudCategory,
+  saveCloudTransaction,
+  subscribeToFamilyData,
+  verifyFamilyMembership,
+} from "./firestore.js";
+
 let transactions = loadTransactions();
 let categories = loadCategories();
 let monthlyBudgets = loadMonthlyBudgets();
 let lastCategoryId = loadLastCategoryId();
+let currentUser = null;
+let stopCloudSubscription = null;
+let eventListenersRegistered = false;
+
+function setSyncStatus(message, state = "idle") {
+  const element = document.getElementById("sync-status");
+
+  if (!element) {
+    return;
+  }
+
+  element.textContent = message;
+  element.dataset.state = state;
+}
 
 function refreshApp() {
   const summary = calculateMonthlySummary(
@@ -47,58 +78,76 @@ function handleEditTransaction(transactionId) {
   );
 }
 
-function handleDeleteTransaction(transactionId) {
+async function handleDeleteTransaction(transactionId) {
   const confirmed = window.confirm("Удалить эту операцию?");
 
   if (!confirmed) {
     return;
   }
 
-  transactions = deleteTransactionById(
-    transactions,
-    transactionId,
-  );
-
-  saveTransactions(transactions);
-  refreshApp();
+  try {
+    setSyncStatus("Удаляем…", "syncing");
+    await deleteCloudTransaction(transactionId);
+    setSyncStatus("Синхронизировано", "online");
+  } catch (error) {
+    console.error(error);
+    setSyncStatus("Ошибка синхронизации", "error");
+    showError(error.message || "Не удалось удалить операцию");
+  }
 }
 
-function handleTransactionSubmit(event) {
+async function handleTransactionSubmit(event) {
   event.preventDefault();
 
   try {
+    if (!currentUser) {
+      throw new Error("Сначала войдите в приложение");
+    }
+
     const values = getTransactionFormValues();
+    let transaction;
 
     if (values.type === "expense" && values.categoryId) {
       lastCategoryId = values.categoryId;
       saveLastCategoryId(lastCategoryId);
-    }    
+    }
 
     if (values.id) {
-      transactions = updateTransactionById(
+      const updatedTransactions = updateTransactionById(
         transactions,
         values.id,
         values,
       );
+
+      transaction = updatedTransactions.find(
+        (item) => item.id === values.id,
+      );
     } else {
-      const transaction = createTransaction(values);
-      transactions.push(transaction);
+      transaction = createTransaction(values);
     }
 
-    saveTransactions(transactions);
+    setSyncStatus("Сохраняем…", "syncing");
+    await saveCloudTransaction(transaction, currentUser);
+
     closeTransactionDialog();
-    refreshApp();
+    setSyncStatus("Синхронизировано", "online");
   } catch (error) {
+    console.error(error);
+    setSyncStatus("Ошибка синхронизации", "error");
     showError(
       error.message || "Не удалось сохранить запись",
     );
   }
 }
 
-function handleCategorySubmit(event) {
+async function handleCategorySubmit(event) {
   event.preventDefault();
 
   try {
+    if (!currentUser) {
+      throw new Error("Сначала войдите в приложение");
+    }
+
     const name = getNewCategoryName();
 
     if (categoryNameExists(categories, name)) {
@@ -108,54 +157,86 @@ function handleCategorySubmit(event) {
 
     const category = createCategory(name);
 
-    categories.push(category);
+    setSyncStatus("Сохраняем…", "syncing");
+    await saveCloudCategory(category, currentUser);
 
-    saveCategories(categories);
+    lastCategoryId = category.id;
+    saveLastCategoryId(lastCategoryId);
 
-    renderCategoryOptions(categories, category.id);
-    renderQuickCategories(categories, category.id);
+    renderCategoryOptions(
+      [...categories, category],
+      category.id,
+    );
+
+    renderQuickCategories(
+      [...categories, category],
+      category.id,
+    );
 
     closeCategoryDialog();
+    setSyncStatus("Синхронизировано", "online");
   } catch (error) {
-    showError(error.message);
+    console.error(error);
+    setSyncStatus("Ошибка синхронизации", "error");
+    showError(error.message || "Не удалось создать категорию");
   }
 }
 
-function handleBudgetSubmit(event) {
+async function handleBudgetSubmit(event) {
   event.preventDefault();
 
-  const budget = getBudgetFormValue();
+  try {
+    if (!currentUser) {
+      throw new Error("Сначала войдите в приложение");
+    }
 
-  if (!Number.isFinite(budget) || budget < 0) {
-    showError("Введите корректную сумму бюджета");
-    return;
+    const budget = getBudgetFormValue();
+
+    if (!Number.isFinite(budget) || budget < 0) {
+      showError("Введите корректную сумму бюджета");
+      return;
+    }
+
+    const currentMonthKey = getMonthKey(new Date());
+
+    setSyncStatus("Сохраняем…", "syncing");
+    await saveCloudBudget(
+      currentMonthKey,
+      budget,
+      currentUser,
+    );
+
+    closeBudgetDialog();
+    setSyncStatus("Синхронизировано", "online");
+  } catch (error) {
+    console.error(error);
+    setSyncStatus("Ошибка синхронизации", "error");
+    showError(error.message || "Не удалось сохранить бюджет");
   }
-
-  const currentMonthKey = getMonthKey(new Date());
-
-  monthlyBudgets[currentMonthKey] = budget;
-  saveMonthlyBudgets(monthlyBudgets);
-
-  closeBudgetDialog();
-  refreshApp();
 }
 
-function handleClearAll() {
+async function handleClearAll() {
   if (transactions.length === 0) {
     return;
   }
 
   const confirmed = window.confirm(
-    "Удалить все операции? Отменить это действие будет невозможно.",
+    "Удалить все операции у обоих пользователей? Отменить это действие будет невозможно.",
   );
 
   if (!confirmed) {
     return;
   }
 
-  transactions = [];
-  saveTransactions(transactions);
-  refreshApp();
+  try {
+    setSyncStatus("Удаляем операции…", "syncing");
+    await clearCloudTransactions();
+    setSyncStatus("Синхронизировано", "online");
+  } catch (error) {
+    console.error(error);
+    setSyncStatus("Ошибка синхронизации", "error");
+    showError(error.message || "Не удалось очистить операции");
+  }
 }
 
 function closeDialogWhenBackdropClicked(event) {
@@ -167,6 +248,12 @@ function closeDialogWhenBackdropClicked(event) {
 }
 
 function registerEventListeners() {
+  if (eventListenersRegistered) {
+    return;
+  }
+
+  eventListenersRegistered = true;
+
   document
     .getElementById("transaction-category")
     .addEventListener("change", (event) => {
@@ -175,7 +262,7 @@ function registerEventListeners() {
         event.target.value,
       );
     });
-  
+
   document
     .getElementById("open-record-dialog-button")
     .addEventListener("click", openRecordDialog);
@@ -261,12 +348,101 @@ function registerEventListeners() {
 
   document
     .getElementById("record-dialog")
-    .addEventListener("click", closeDialogWhenBackdropClicked);
+    .addEventListener(
+      "click",
+      closeDialogWhenBackdropClicked,
+    );
+}
+
+function stopCloudSession() {
+  stopCloudSubscription?.();
+  stopCloudSubscription = null;
+  currentUser = null;
+  setSyncStatus("Не подключено", "idle");
+}
+
+async function startCloudSession(user) {
+  stopCloudSession();
+  currentUser = user;
+
+  setSyncStatus("Подключаем облако…", "syncing");
+
+  try {
+    await ensureFamilyDocument();
+    await verifyFamilyMembership(user);
+
+    await migrateLocalDataToCloud({
+      user,
+      transactions: loadTransactions(),
+      categories: loadCategories(),
+      monthlyBudgets: loadMonthlyBudgets(),
+    });
+
+    stopCloudSubscription = subscribeToFamilyData({
+      onTransactions(nextTransactions) {
+        transactions = nextTransactions;
+        saveTransactions(transactions);
+        refreshApp();
+        setSyncStatus("Синхронизировано", "online");
+      },
+
+      onCategories(nextCategories) {
+        categories = nextCategories.length > 0
+          ? nextCategories
+          : [...DEFAULT_CATEGORIES];
+
+        saveCategories(categories);
+        refreshApp();
+        setSyncStatus("Синхронизировано", "online");
+      },
+
+      onBudgets(nextBudgets) {
+        monthlyBudgets = nextBudgets;
+        saveMonthlyBudgets(monthlyBudgets);
+        refreshApp();
+        setSyncStatus("Синхронизировано", "online");
+      },
+
+      onError(error) {
+        console.error("Firestore subscription error:", error);
+        setSyncStatus("Ошибка доступа к облаку", "error");
+        showError(
+          error.code === "permission-denied"
+            ? "Firestore отклонил доступ. Проверьте Rules и документы members."
+            : "Не удалось синхронизировать данные",
+        );
+      },
+    });
+  } catch (error) {
+    console.error("Не удалось запустить облачную сессию:", error);
+    setSyncStatus("Облако не подключено", "error");
+    showError(error.message || "Не удалось подключить Firestore");
+  }
+}
+
+function handleAuthChange(user) {
+  if (!user) {
+    stopCloudSession();
+    return;
+  }
+
+  startCloudSession(user);
 }
 
 function startApp() {
   registerEventListeners();
   refreshApp();
+  subscribeToAuth(handleAuthChange);
 }
 
-document.addEventListener("DOMContentLoaded", startApp);
+if (document.readyState === "loading") {
+  document.addEventListener(
+    "DOMContentLoaded",
+    startApp,
+    { once: true },
+  );
+} else {
+  startApp();
+}
+
+await initialAuthPromise;

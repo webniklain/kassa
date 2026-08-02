@@ -11,7 +11,6 @@
   <title>Семейный бюджет</title>
 
   <link rel="stylesheet" href="styles.css" />
-  <link rel="manifest" href="manifest.json" />
   <link rel="manifest" href="./manifest.json" />
 
   <link
@@ -88,7 +87,12 @@
         <h1 id="current-month">Август 2026</h1>
       </div>
 
-      <div class="header-actions">
+      <div class="header-tools">
+        <span id="sync-status" class="sync-status" data-state="idle">
+          Не подключено
+        </span>
+
+        <div class="header-actions">
         <button
           id="logout-button"
           class="icon-button logout-button"
@@ -107,6 +111,7 @@
         >
           ⚙
         </button>
+        </div>
       </div>
     </header>
 
@@ -399,7 +404,6 @@
   <script src="storage.js"></script>
   <script src="logic.js"></script>
   <script src="ui.js"></script>
-  <script src="app.js"></script>
-  <script type="module" src="firebase.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>
