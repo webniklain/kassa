@@ -94,6 +94,26 @@
 
         <div class="header-actions">
         <button
+          id="open-analytics-button"
+          class="icon-button"
+          type="button"
+          aria-label="Статистика по категориям"
+          title="Статистика"
+        >
+          ◔
+        </button>
+
+        <button
+          id="open-category-manager-button"
+          class="icon-button"
+          type="button"
+          aria-label="Управление категориями"
+          title="Категории"
+        >
+          🏷
+        </button>
+
+        <button
           id="logout-button"
           class="icon-button logout-button"
           type="button"
@@ -332,7 +352,7 @@
   <dialog id="category-dialog" class="dialog">
     <form id="category-form" method="dialog">
       <div class="dialog-header">
-        <h2>Новая категория</h2>
+        <h2 id="category-dialog-title">Новая категория</h2>
 
         <button
           id="close-category-dialog"
@@ -343,21 +363,81 @@
         </button>
       </div>
 
-      <label class="field">
-        <span>Название категории</span>
-        <input
-          id="new-category-name"
-          type="text"
-          placeholder="Например, Аптека"
-          maxlength="40"
-          required
-        />
-      </label>
+      <input id="category-id" type="hidden" value="" />
 
-      <button class="primary-button" type="submit">
+      <div class="category-editor-grid">
+        <label class="field category-icon-field">
+          <span>Иконка</span>
+          <input
+            id="new-category-icon"
+            type="text"
+            value="📦"
+            maxlength="8"
+            aria-label="Иконка категории"
+            required
+          />
+        </label>
+
+        <label class="field">
+          <span>Название категории</span>
+          <input
+            id="new-category-name"
+            type="text"
+            placeholder="Например, Аптека"
+            maxlength="40"
+            required
+          />
+        </label>
+      </div>
+
+      <button
+        id="category-submit-button"
+        class="primary-button"
+        type="submit"
+      >
         Добавить категорию
       </button>
     </form>
+  </dialog>
+
+  <dialog id="analytics-dialog" class="dialog large-dialog">
+    <div class="analytics-dialog-content">
+      <div class="dialog-header">
+        <div>
+          <h2>Расходы по категориям</h2>
+          <p id="analytics-subtitle" class="dialog-subtitle">Расходы за месяц</p>
+        </div>
+        <button id="close-analytics-dialog" class="icon-button" type="button">✕</button>
+      </div>
+
+      <div class="analytics-period-switcher">
+        <button type="button" data-analytics-period="today">Сегодня</button>
+        <button type="button" data-analytics-period="week">7 дней</button>
+        <button type="button" data-analytics-period="month" class="is-selected">Месяц</button>
+      </div>
+
+      <section class="analytics-total-card">
+        <span>Всего расходов</span>
+        <strong id="analytics-total">0 GEL</strong>
+      </section>
+
+      <div id="analytics-category-list" class="analytics-category-list"></div>
+    </div>
+  </dialog>
+
+  <dialog id="category-manager-dialog" class="dialog large-dialog">
+    <div class="category-manager-content">
+      <div class="dialog-header">
+        <div>
+          <h2>Категории</h2>
+          <p class="dialog-subtitle">Название и иконка синхронизируются у всей семьи</p>
+        </div>
+        <button id="close-category-manager-dialog" class="icon-button" type="button">✕</button>
+      </div>
+
+      <button id="create-category-from-manager" class="primary-button" type="button">+ Новая категория</button>
+      <div id="category-manager-list" class="category-manager-list"></div>
+    </div>
   </dialog>
 
   <dialog id="budget-dialog" class="dialog">
