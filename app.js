@@ -600,6 +600,12 @@ function stopCloudSession() {
 }
 
 async function startCloudSession(user) {
+  console.log(
+    "Kassa: запускаем облачную сессию для",
+    user.email,
+    user.uid,
+  );
+
   stopCloudSession();
 
   currentUser = user;
@@ -610,9 +616,13 @@ async function startCloudSession(user) {
   );
 
   try {
+    console.log("Kassa: проверяем документ семьи");
     await ensureFamilyDocument();
+
+    console.log("Kassa: проверяем членство пользователя");
     await verifyFamilyMembership(user);
 
+    console.log("Kassa: запускаем миграцию локальных данных");
     await migrateLocalDataToCloud({
       user,
       transactions: loadTransactions(),
@@ -620,6 +630,7 @@ async function startCloudSession(user) {
       monthlyBudgets: loadMonthlyBudgets(),
     });
 
+    console.log("Kassa: подписываемся на Firestore");
     stopCloudSubscription = subscribeToFamilyData({
       onTransactions(nextTransactions) {
         transactions = nextTransactions;
