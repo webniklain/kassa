@@ -1,1 +1,1 @@
-const CACHE_NAME = "kassa-v12";
+const CACHE_NAME = "kassa-v13";
