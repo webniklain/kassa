@@ -697,12 +697,22 @@ async function startCloudSession(user) {
 }
 
 function handleAuthChange(user) {
+  console.log(
+    "Kassa auth change:",
+    user ? user.email : "пользователь отсутствует",
+  );
+
   if (!user) {
     stopCloudSession();
     return;
   }
 
-  startCloudSession(user);
+  startCloudSession(user).catch((error) => {
+    console.error(
+      "Kassa startCloudSession failed:",
+      error,
+    );
+  });
 }
 
 function startApp() {
