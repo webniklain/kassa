@@ -25,6 +25,7 @@ let stopCloudSubscription = null;
 let eventListenersRegistered = false;
 let dateRefreshListenersRegistered = false;
 let dayRefreshTimer = null;
+let analyticsPeriod = "month";
 
 function getLocalDayKey(date = new Date()) {
   const year = date.getFullYear();
@@ -73,6 +74,20 @@ function refreshApp() {
     categories,
     handleEditTransaction,
     handleDeleteTransaction,
+  );
+
+  renderCategoryAnalytics(
+    calculateCategoryExpenseSummary(
+      transactions,
+      categories,
+      analyticsPeriod,
+      currentDate,
+    ),
+  );
+
+  renderCategoryManager(
+    categories,
+    handleEditCategory,
   );
 }
 
@@ -252,47 +267,61 @@ async function handleCategorySubmit(event) {
       throw new Error("Сначала войдите в приложение");
     }
 
-    const name = getNewCategoryName();
+    const values = getCategoryFormValues();
+    const normalizedName = values.name.trim();
 
-    if (categoryNameExists(categories, name)) {
+    const duplicateExists = categories.some(
+      (category) =>
+        category.id !== values.id &&
+        category.name.trim().toLowerCase() ===
+          normalizedName.toLowerCase(),
+    );
+
+    if (duplicateExists) {
       showError("Такая категория уже существует");
       return;
     }
 
-    const category = createCategory(name);
+    const existingCategory = values.id
+      ? categories.find((category) => category.id === values.id)
+      : null;
+
+    const category = existingCategory
+      ? updateCategory(existingCategory, values)
+      : {
+          ...createCategory(normalizedName),
+          icon: values.icon.trim() || "📦",
+        };
 
     setSyncStatus("Сохраняем…", "syncing");
-
-    await saveCloudCategory(
-      category,
-      currentUser,
-    );
+    await saveCloudCategory(category, currentUser);
 
     lastCategoryId = category.id;
     saveLastCategoryId(lastCategoryId);
 
-    renderCategoryOptions(
-      [...categories, category],
-      category.id,
-    );
-
-    renderQuickCategories(
-      [...categories, category],
-      category.id,
-    );
-
     closeCategoryDialog();
-
     setSyncStatus("Синхронизировано", "online");
   } catch (error) {
     console.error(error);
-
     setSyncStatus("Ошибка синхронизации", "error");
-
     showError(
-      error.message || "Не удалось создать категорию",
+      error.message || "Не удалось сохранить категорию",
     );
   }
+}
+
+function handleEditCategory(categoryId) {
+  const category = categories.find(
+    (item) => item.id === categoryId,
+  );
+
+  if (!category) {
+    showError("Категория не найдена");
+    return;
+  }
+
+  closeCategoryManagerDialog();
+  openCategoryDialog(category);
 }
 
 async function handleBudgetSubmit(event) {
@@ -507,6 +536,58 @@ function registerEventListeners() {
       "click",
       closeDialogWhenBackdropClicked,
     );
+
+  document
+    .getElementById("open-analytics-button")
+    ?.addEventListener("click", () => {
+      refreshApp();
+      openAnalyticsDialog();
+    });
+
+  document
+    .getElementById("close-analytics-dialog")
+    ?.addEventListener("click", closeAnalyticsDialog);
+
+  document
+    .getElementById("analytics-dialog")
+    ?.addEventListener(
+      "click",
+      closeDialogWhenBackdropClicked,
+    );
+
+  document
+    .querySelectorAll("[data-analytics-period]")
+    .forEach((button) => {
+      button.addEventListener("click", () => {
+        analyticsPeriod = button.dataset.analyticsPeriod || "month";
+        refreshApp();
+      });
+    });
+
+  document
+    .getElementById("open-category-manager-button")
+    ?.addEventListener("click", () => {
+      renderCategoryManager(categories, handleEditCategory);
+      openCategoryManagerDialog();
+    });
+
+  document
+    .getElementById("close-category-manager-dialog")
+    ?.addEventListener("click", closeCategoryManagerDialog);
+
+  document
+    .getElementById("category-manager-dialog")
+    ?.addEventListener(
+      "click",
+      closeDialogWhenBackdropClicked,
+    );
+
+  document
+    .getElementById("create-category-from-manager")
+    ?.addEventListener("click", () => {
+      closeCategoryManagerDialog();
+      openCategoryDialog();
+    });
 }
 
 function stopCloudSession() {
