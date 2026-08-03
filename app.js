@@ -681,6 +681,11 @@ async function startCloudSession(user) {
         );
       },
 
+      onReady() {
+        console.log("Kassa: Firestore полностью подключён");
+        setSyncStatus("Синхронизировано", "online");
+      },
+
       onError(error) {
         console.error(
           "Firestore subscription error:",

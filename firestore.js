@@ -49,43 +49,81 @@ function subscribeToFamilyData({
   onTransactions,
   onCategories,
   onBudgets,
+  onReady,
   onError,
 }) {
   const unsubscribers = [];
+  let readyCollections = 0;
+  const readyCollectionNames = new Set();
+
+  function markCollectionReady(name) {
+    if (readyCollectionNames.has(name)) {
+      return;
+    }
+
+    readyCollectionNames.add(name);
+    readyCollections += 1;
+
+    if (readyCollections === 3) {
+      onReady?.();
+    }
+  }
+
+  function handleListenerError(error) {
+    console.error("Firestore listener error:", error);
+    onError?.(error);
+  }
 
   unsubscribers.push(
     onSnapshot(
       familyCollection("transactions"),
+      { includeMetadataChanges: true },
       (snapshot) => {
         const transactions = snapshot.docs.map((item) => ({
           id: item.id,
           ...item.data(),
         }));
 
+        console.log(
+          "Kassa: transactions snapshot",
+          transactions.length,
+          snapshot.metadata.fromCache ? "cache" : "server",
+        );
+
         onTransactions(transactions);
+        markCollectionReady("transactions");
       },
-      onError,
+      handleListenerError,
     ),
   );
 
   unsubscribers.push(
     onSnapshot(
       familyCollection("categories"),
+      { includeMetadataChanges: true },
       (snapshot) => {
         const categories = snapshot.docs.map((item) => ({
           id: item.id,
           ...item.data(),
         }));
 
+        console.log(
+          "Kassa: categories snapshot",
+          categories.length,
+          snapshot.metadata.fromCache ? "cache" : "server",
+        );
+
         onCategories(categories);
+        markCollectionReady("categories");
       },
-      onError,
+      handleListenerError,
     ),
   );
 
   unsubscribers.push(
     onSnapshot(
       familyCollection("budgets"),
+      { includeMetadataChanges: true },
       (snapshot) => {
         const budgets = {};
 
@@ -93,9 +131,16 @@ function subscribeToFamilyData({
           budgets[item.id] = Number(item.data().amount) || 0;
         });
 
+        console.log(
+          "Kassa: budgets snapshot",
+          Object.keys(budgets).length,
+          snapshot.metadata.fromCache ? "cache" : "server",
+        );
+
         onBudgets(budgets);
+        markCollectionReady("budgets");
       },
-      onError,
+      handleListenerError,
     ),
   );
 
