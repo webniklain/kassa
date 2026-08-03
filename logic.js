@@ -292,3 +292,102 @@ function calculateDailyRecommendation(summary, date = new Date()) {
     message,
   };
 }
+
+function getExpenseTransactionsForPeriod(
+  transactions,
+  period = "month",
+  today = new Date(),
+) {
+  const monthKey = getMonthKey(today);
+
+  return transactions.filter((transaction) => {
+    if (transaction.type !== "expense") {
+      return false;
+    }
+
+    const transactionDate = parseLocalDate(transaction.date);
+
+    if (period === "today") {
+      return isSameDay(transactionDate, today);
+    }
+
+    if (period === "week") {
+      return isDateWithinLastDays(transactionDate, 7, today);
+    }
+
+    return transaction.date.startsWith(monthKey);
+  });
+}
+
+function calculateCategoryExpenseSummary(
+  transactions,
+  categories,
+  period = "month",
+  today = new Date(),
+) {
+  const periodTransactions = getExpenseTransactionsForPeriod(
+    transactions,
+    period,
+    today,
+  );
+
+  const totals = new Map();
+
+  periodTransactions.forEach((transaction) => {
+    const categoryId = transaction.categoryId || "uncategorized";
+    const current = totals.get(categoryId) || {
+      amount: 0,
+      operationsCount: 0,
+    };
+
+    current.amount += Number(transaction.amount) || 0;
+    current.operationsCount += 1;
+    totals.set(categoryId, current);
+  });
+
+  const total = [...totals.values()].reduce(
+    (sum, item) => sum + item.amount,
+    0,
+  );
+
+  const items = [...totals.entries()]
+    .map(([categoryId, values]) => {
+      const category = findCategoryById(categories, categoryId);
+
+      return {
+        categoryId,
+        name: category?.name || "Без категории",
+        icon: category?.icon || "📦",
+        amount: values.amount,
+        operationsCount: values.operationsCount,
+        percent: total > 0 ? (values.amount / total) * 100 : 0,
+      };
+    })
+    .sort((first, second) => second.amount - first.amount);
+
+  return {
+    period,
+    total,
+    items,
+  };
+}
+
+function updateCategory(category, { name, icon }) {
+  const normalizedName = String(name || "").trim();
+  const normalizedIcon = String(icon || "").trim() || "📦";
+
+  if (!category) {
+    throw new Error("Категория не найдена");
+  }
+
+  if (!normalizedName) {
+    throw new Error("Введите название категории");
+  }
+
+  return {
+    ...category,
+    name: normalizedName,
+    icon: normalizedIcon,
+    updatedAt: new Date().toISOString(),
+  };
+}

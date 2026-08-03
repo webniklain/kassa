@@ -445,16 +445,48 @@ function closeTransactionDialog() {
   document.getElementById("transaction-dialog")?.close();
 }
 
-function openCategoryDialog() {
+function openCategoryDialog(category = null) {
   const dialog = document.getElementById("category-dialog");
   const form = document.getElementById("category-form");
-  const input = document.getElementById("new-category-name");
+  const idInput = document.getElementById("category-id");
+  const nameInput = document.getElementById("new-category-name");
+  const iconInput = document.getElementById("new-category-icon");
+  const title = document.getElementById("category-dialog-title");
+  const submitButton = document.getElementById(
+    "category-submit-button",
+  );
 
-  form.reset();
-  dialog.showModal();
+  form?.reset();
+
+  if (idInput) {
+    idInput.value = category?.id || "";
+  }
+
+  if (nameInput) {
+    nameInput.value = category?.name || "";
+  }
+
+  if (iconInput) {
+    iconInput.value = category?.icon || "📦";
+  }
+
+  if (title) {
+    title.textContent = category
+      ? "Изменить категорию"
+      : "Новая категория";
+  }
+
+  if (submitButton) {
+    submitButton.textContent = category
+      ? "Сохранить изменения"
+      : "Добавить категорию";
+  }
+
+  dialog?.showModal();
 
   window.setTimeout(() => {
-    input.focus();
+    nameInput?.focus();
+    nameInput?.select();
   }, 50);
 }
 
@@ -493,8 +525,16 @@ function getTransactionFormValues() {
   };
 }
 
+function getCategoryFormValues() {
+  return {
+    id: document.getElementById("category-id")?.value || "",
+    name: document.getElementById("new-category-name")?.value || "",
+    icon: document.getElementById("new-category-icon")?.value || "📦",
+  };
+}
+
 function getNewCategoryName() {
-  return document.getElementById("new-category-name").value;
+  return getCategoryFormValues().name;
 }
 
 function getBudgetFormValue() {
@@ -505,4 +545,133 @@ function getBudgetFormValue() {
 
 function showError(message) {
   alert(message);
+}
+
+function getAnalyticsPeriodTitle(period) {
+  const titles = {
+    today: "сегодня",
+    week: "за 7 дней",
+    month: "за месяц",
+  };
+
+  return titles[period] || titles.month;
+}
+
+function renderCategoryAnalytics(summary) {
+  const list = document.getElementById("analytics-category-list");
+  const total = document.getElementById("analytics-total");
+  const subtitle = document.getElementById("analytics-subtitle");
+
+  if (!list || !total || !subtitle) {
+    return;
+  }
+
+  total.textContent = formatMoney(summary.total);
+  subtitle.textContent = `Расходы ${getAnalyticsPeriodTitle(summary.period)}`;
+  list.innerHTML = "";
+
+  document
+    .querySelectorAll("[data-analytics-period]")
+    .forEach((button) => {
+      button.classList.toggle(
+        "is-selected",
+        button.dataset.analyticsPeriod === summary.period,
+      );
+    });
+
+  if (summary.items.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "empty-state";
+    empty.textContent = "Расходов за этот период нет";
+    list.append(empty);
+    return;
+  }
+
+  summary.items.forEach((item) => {
+    const row = document.createElement("article");
+    row.className = "analytics-category-item";
+
+    const header = document.createElement("div");
+    header.className = "analytics-category-header";
+
+    const name = document.createElement("strong");
+    name.textContent = `${item.icon} ${item.name}`;
+
+    const amount = document.createElement("strong");
+    amount.textContent = formatMoney(item.amount);
+
+    header.append(name, amount);
+
+    const meta = document.createElement("div");
+    meta.className = "analytics-category-meta";
+    meta.textContent = `${item.operationsCount} операций · ${item.percent.toFixed(1)}%`;
+
+    const track = document.createElement("div");
+    track.className = "analytics-progress-track";
+
+    const fill = document.createElement("span");
+    fill.className = "analytics-progress-fill";
+    fill.style.width = `${Math.max(2, item.percent)}%`;
+
+    track.append(fill);
+    row.append(header, meta, track);
+    list.append(row);
+  });
+}
+
+function openAnalyticsDialog() {
+  document.getElementById("analytics-dialog")?.showModal();
+}
+
+function closeAnalyticsDialog() {
+  document.getElementById("analytics-dialog")?.close();
+}
+
+function renderCategoryManager(categories, onEdit) {
+  const list = document.getElementById("category-manager-list");
+
+  if (!list) {
+    return;
+  }
+
+  list.innerHTML = "";
+
+  const activeCategories = categories
+    .filter((category) => !category.isArchived)
+    .sort((first, second) =>
+      first.name.localeCompare(second.name, "ru"),
+    );
+
+  activeCategories.forEach((category) => {
+    const row = document.createElement("article");
+    row.className = "category-manager-item";
+
+    const identity = document.createElement("div");
+    identity.className = "category-manager-identity";
+
+    const icon = document.createElement("span");
+    icon.className = "category-manager-icon";
+    icon.textContent = category.icon || "📦";
+
+    const name = document.createElement("strong");
+    name.textContent = category.name;
+
+    const editButton = document.createElement("button");
+    editButton.type = "button";
+    editButton.className = "secondary-button category-edit-button";
+    editButton.textContent = "Изменить";
+    editButton.addEventListener("click", () => onEdit(category.id));
+
+    identity.append(icon, name);
+    row.append(identity, editButton);
+    list.append(row);
+  });
+}
+
+function openCategoryManagerDialog() {
+  document.getElementById("category-manager-dialog")?.showModal();
+}
+
+function closeCategoryManagerDialog() {
+  document.getElementById("category-manager-dialog")?.close();
 }

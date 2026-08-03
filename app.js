@@ -1,7 +1,4 @@
-import {
-  initialAuthPromise,
-  subscribeToAuth,
-} from "./firebase.js";
+import { subscribeToAuth } from "./firebase.js";
 
 import {
   clearCloudTransactions,
@@ -48,7 +45,7 @@ function setSyncStatus(message, state = "idle") {
   element.dataset.state = state;
 }
 
-function refreshApp() {
+function renderAppState() {
   const currentDate = new Date();
 
   const summary = calculateMonthlySummary(
@@ -89,6 +86,15 @@ function refreshApp() {
     categories,
     handleEditCategory,
   );
+}
+
+function refreshApp() {
+  try {
+    renderAppState();
+  } catch (error) {
+    console.error("Kassa render failed:", error);
+    setSyncStatus("Ошибка интерфейса", "error");
+  }
 }
 
 function refreshAppForCurrentDate() {
@@ -539,7 +545,9 @@ function registerEventListeners() {
 
   document
     .getElementById("open-analytics-button")
-    ?.addEventListener("click", () => {
+    ?.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
       refreshApp();
       openAnalyticsDialog();
     });
@@ -566,7 +574,9 @@ function registerEventListeners() {
 
   document
     .getElementById("open-category-manager-button")
-    ?.addEventListener("click", () => {
+    ?.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
       renderCategoryManager(categories, handleEditCategory);
       openCategoryManagerDialog();
     });
@@ -708,9 +718,9 @@ async function startCloudSession(user) {
 }
 
 function handleAuthChange(user) {
-  console.log(
-    "Kassa auth change:",
-    user ? user.email : "пользователь отсутствует",
+  console.info(
+    "Kassa: auth state",
+    user ? user.email || user.uid : "guest",
   );
 
   if (!user) {
@@ -718,19 +728,22 @@ function handleAuthChange(user) {
     return;
   }
 
-  startCloudSession(user).catch((error) => {
-    console.error(
-      "Kassa startCloudSession failed:",
-      error,
-    );
-  });
+  void startCloudSession(user);
 }
 
 function startApp() {
-  registerEventListeners();
-  registerDateRefreshListeners();
-  refreshAppForCurrentDate();
-  subscribeToAuth(handleAuthChange);
+  console.info("Kassa: application bootstrap");
+
+  try {
+    registerEventListeners();
+    registerDateRefreshListeners();
+    subscribeToAuth(handleAuthChange);
+    refreshAppForCurrentDate();
+  } catch (error) {
+    console.error("Kassa bootstrap failed:", error);
+    setSyncStatus("Ошибка запуска", "error");
+    showError("Не удалось запустить приложение. Обновите страницу.");
+  }
 }
 
 if (document.readyState === "loading") {
@@ -742,5 +755,3 @@ if (document.readyState === "loading") {
 } else {
   startApp();
 }
-
-await initialAuthPromise;
