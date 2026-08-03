@@ -202,9 +202,6 @@ h2 {
     inset -4px -4px 10px rgb(255 255 255 / 4%);
 }
 
-.logout-button {
-  color: #ff7680;
-}
 
 .sync-status {
   display: inline-flex;
@@ -939,7 +936,72 @@ h2 {
   gap: 8px;
 }
 
-/* Floating action button */
+/* Floating action buttons */
+
+.floating-analytics-button {
+  position: fixed;
+  right: max(28px, calc((100vw - 520px) / 2 + 28px));
+  bottom: max(104px, calc(env(safe-area-inset-bottom) + 98px));
+  z-index: 49;
+
+  display: grid;
+  width: 56px;
+  height: 56px;
+  place-items: center;
+
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 50%;
+  background: linear-gradient(145deg, #20252d, #090b0f);
+  color: #d9e8ff;
+
+  box-shadow:
+    0 13px 28px rgb(0 0 0 / 74%),
+    0 0 18px rgb(10 132 255 / 12%),
+    inset 0 1px 1px rgb(255 255 255 / 12%),
+    inset 0 -2px 5px rgb(0 0 0 / 42%);
+
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease,
+    filter 140ms ease;
+}
+
+.floating-analytics-button span {
+  display: block;
+  font-size: 27px;
+  line-height: 1;
+  transform: translateY(-1px);
+}
+
+.floating-analytics-button:hover {
+  transform: translateY(-2px) scale(1.025);
+  filter: brightness(1.08);
+  box-shadow:
+    0 16px 32px rgb(0 0 0 / 78%),
+    0 0 25px rgb(10 132 255 / 20%),
+    inset 0 1px 1px rgb(255 255 255 / 16%),
+    inset 0 -2px 5px rgb(0 0 0 / 38%);
+}
+
+.floating-analytics-button:active {
+  transform: scale(0.92);
+  box-shadow:
+    0 7px 16px rgb(0 0 0 / 72%),
+    inset 0 4px 9px rgb(0 0 0 / 55%),
+    0 0 16px rgb(10 132 255 / 14%);
+}
+
+.floating-analytics-button:focus-visible {
+  outline: none;
+  box-shadow:
+    0 13px 28px rgb(0 0 0 / 74%),
+    0 0 0 4px rgb(10 132 255 / 20%),
+    0 0 24px rgb(10 132 255 / 18%),
+    inset 0 1px 1px rgb(255 255 255 / 12%);
+}
 
 .floating-record-button {
   position: fixed;
@@ -1021,7 +1083,8 @@ h2 {
 /* Authentication */
 
 body.is-guest .app,
-body.is-guest .floating-record-button {
+body.is-guest .floating-record-button,
+body.is-guest .floating-analytics-button {
   display: none !important;
 }
 
@@ -1360,6 +1423,17 @@ body.is-authenticated .login-screen {
 
   .period-content strong {
     font-size: 13px;
+  }
+
+  .floating-analytics-button {
+    right: 22px;
+    bottom: max(96px, calc(env(safe-area-inset-bottom) + 90px));
+    width: 52px;
+    height: 52px;
+  }
+
+  .floating-analytics-button span {
+    font-size: 25px;
   }
 
   .floating-record-button {

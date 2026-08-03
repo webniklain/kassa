@@ -10,7 +10,7 @@
 
   <title>Семейный бюджет</title>
 
-  <link rel="stylesheet" href="styles.css?v=2.0.0" />
+  <link rel="stylesheet" href="styles.css" />
   <link rel="manifest" href="./manifest.json" />
 
   <link
@@ -93,44 +93,25 @@
         </span>
 
         <div class="header-actions">
-        <button
-          id="open-analytics-button"
-          class="icon-button"
-          type="button"
-          aria-label="Статистика по категориям"
-          title="Статистика"
-        >
-          ◔
-        </button>
+          <button
+            id="open-category-manager-button"
+            class="icon-button"
+            type="button"
+            aria-label="Управление категориями"
+            title="Категории"
+          >
+            🏷
+          </button>
 
-        <button
-          id="open-category-manager-button"
-          class="icon-button"
-          type="button"
-          aria-label="Управление категориями"
-          title="Категории"
-        >
-          🏷
-        </button>
-
-        <button
-          id="logout-button"
-          class="icon-button logout-button"
-          type="button"
-          aria-label="Выйти"
-          title="Выйти"
-        >
-          ↪
-        </button>
-
-        <button
-          id="open-budget-button"
-          class="icon-button"
-          type="button"
-          aria-label="Настройки бюджета"
-        >
-          ⚙
-        </button>
+          <button
+            id="open-budget-button"
+            class="icon-button"
+            type="button"
+            aria-label="Настройки бюджета"
+            title="Бюджет"
+          >
+            ⚙
+          </button>
         </div>
       </div>
     </header>
@@ -474,6 +455,16 @@
   </dialog>
 
   <button
+    id="open-analytics-button"
+    class="floating-analytics-button"
+    type="button"
+    aria-label="Статистика по категориям"
+    title="Статистика"
+  >
+    <span aria-hidden="true">◔</span>
+  </button>
+
+  <button
     id="open-record-dialog-button"
     class="floating-record-button"
     type="button"
@@ -484,6 +475,6 @@
   <script src="storage.js"></script>
   <script src="logic.js"></script>
   <script src="ui.js"></script>
-  <script type="module" src="app.js?v=2.0.0"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>
