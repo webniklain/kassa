@@ -1699,3 +1699,50 @@ body {
     text-align: right;
   }
 }
+
+/* ==================================================
+   BUDGET RULES 2.1
+   ================================================== */
+
+.planned-payments-section,
+.compensated-section {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 20px;
+  background: linear-gradient(145deg, #151920, #080a0e);
+  box-shadow: inset 1px 1px 1px rgb(255 255 255 / 5%);
+}
+
+.budget-section-heading h3,
+.compensated-section h3 { margin: 0; font-size: 16px; }
+.budget-section-heading p { margin: 4px 0 0; color: var(--neo-muted, #8d95a3); font-size: 12px; }
+.planned-payments-list { display: grid; gap: 10px; }
+.planned-payment-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) 118px; align-items: center; gap: 12px;
+}
+.planned-payment-identity { display: flex; min-width: 0; align-items: center; gap: 9px; }
+.planned-payment-identity strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+.planned-payment-input-wrap { position: relative; display: block; }
+.planned-payment-input-wrap input {
+  width: 100%; min-height: 44px; padding: 8px 38px 8px 11px; border: 0; border-radius: 13px;
+  background: linear-gradient(145deg, #090b0f, #141820); color: #fff; text-align: right;
+  box-shadow: inset 5px 5px 11px rgb(0 0 0 / 75%), inset -3px -3px 7px rgb(255 255 255 / 3%);
+}
+.planned-payment-input-wrap small { position: absolute; top: 50%; right: 10px; color: #7f8794; transform: translateY(-50%); pointer-events: none; }
+.budget-category-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.budget-category-chip { padding: 8px 11px; border-radius: 12px; background: rgb(75 145 255 / 12%); color: #8db5ff; font-size: 13px; font-weight: 700; }
+.discretionary-preview {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px; border-radius: 18px;
+  background: linear-gradient(145deg, #143822, #07110a);
+}
+.discretionary-preview span { color: #b9c4bc; font-size: 13px; }
+.discretionary-preview strong { color: var(--neo-green, #52f06a); font-size: 22px; white-space: nowrap; }
+.category-type-label { display: block; margin-top: 3px; color: var(--neo-muted, #8d95a3); font-size: 11px; font-weight: 500; }
+.empty-state.compact { padding: 8px 0; font-size: 12px; }
+
+@media (max-width: 430px) {
+  .planned-payment-row { grid-template-columns: minmax(0, 1fr) 104px; gap: 8px; }
+  .planned-payment-identity strong { font-size: 13px; }
+  .discretionary-preview { align-items: flex-start; flex-direction: column; }
+}

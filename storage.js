@@ -2,6 +2,7 @@ const STORAGE_KEYS = {
   transactions: "kassa-transactions",
   categories: "kassa-categories",
   monthlyBudgets: "kassa-monthly-budgets",
+  monthlyPlans: "kassa-monthly-plans",
   lastCategory: "kassa-last-category",
 };
 
@@ -10,6 +11,7 @@ const DEFAULT_CATEGORIES = [
     id: "category-products",
     name: "Продукты",
     icon: "🛒",
+    budgetBehavior: "normal",
     isArchived: false,
     createdAt: new Date().toISOString(),
   },
@@ -17,6 +19,7 @@ const DEFAULT_CATEGORIES = [
     id: "category-child",
     name: "Сын",
     icon: "👦",
+    budgetBehavior: "normal",
     isArchived: false,
     createdAt: new Date().toISOString(),
   },
@@ -24,6 +27,7 @@ const DEFAULT_CATEGORIES = [
     id: "category-other",
     name: "Прочее",
     icon: "📦",
+    budgetBehavior: "normal",
     isArchived: false,
     createdAt: new Date().toISOString(),
   },
@@ -110,6 +114,32 @@ function saveMonthlyBudgets(monthlyBudgets) {
   }
 
   return writeJson(STORAGE_KEYS.monthlyBudgets, monthlyBudgets);
+}
+
+function loadMonthlyPlans() {
+  const plans = readJson(STORAGE_KEYS.monthlyPlans, {});
+
+  if (
+    typeof plans !== "object" ||
+    plans === null ||
+    Array.isArray(plans)
+  ) {
+    return {};
+  }
+
+  return plans;
+}
+
+function saveMonthlyPlans(plans) {
+  if (
+    typeof plans !== "object" ||
+    plans === null ||
+    Array.isArray(plans)
+  ) {
+    throw new TypeError("monthlyPlans должен быть объектом");
+  }
+
+  return writeJson(STORAGE_KEYS.monthlyPlans, plans);
 }
 
 function loadLastCategoryId() {

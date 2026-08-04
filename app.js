@@ -4,6 +4,7 @@ import {
   clearCloudTransactions,
   deleteCloudTransaction,
   ensureFamilyDocument,
+  ensureFinancialCategories,
   migrateLocalDataToCloud,
   saveCloudBudget,
   saveCloudCategory,
@@ -15,6 +16,7 @@ import {
 let transactions = loadTransactions();
 let categories = loadCategories();
 let monthlyBudgets = loadMonthlyBudgets();
+let monthlyPlans = loadMonthlyPlans();
 let lastCategoryId = loadLastCategoryId();
 
 let currentUser = null;
@@ -52,6 +54,8 @@ function renderAppState() {
     transactions,
     monthlyBudgets,
     currentDate,
+    categories,
+    monthlyPlans,
   );
 
   renderSummary(summary);
@@ -338,7 +342,8 @@ async function handleBudgetSubmit(event) {
       throw new Error("Сначала войдите в приложение");
     }
 
-    const budget = getBudgetFormValue();
+    const budgetValues = getBudgetFormValues();
+    const budget = budgetValues.budget;
 
     if (!Number.isFinite(budget) || budget < 0) {
       showError("Введите корректную сумму бюджета");
@@ -353,6 +358,7 @@ async function handleBudgetSubmit(event) {
       currentMonthKey,
       budget,
       currentUser,
+      { plannedPayments: budgetValues.plannedPayments },
     );
 
     closeBudgetDialog();
@@ -463,7 +469,11 @@ function registerEventListeners() {
       const currentBudget =
         Number(monthlyBudgets[currentMonthKey]) || 0;
 
-      openBudgetDialog(currentBudget);
+      openBudgetDialog(
+        currentBudget,
+        categories,
+        monthlyPlans[currentMonthKey] || {},
+      );
     });
 
   document
@@ -632,12 +642,16 @@ async function startCloudSession(user) {
     console.log("Kassa: проверяем членство пользователя");
     await verifyFamilyMembership(user);
 
+    console.log("Kassa: проверяем финансовые категории");
+    await ensureFinancialCategories(user);
+
     console.log("Kassa: запускаем миграцию локальных данных");
     await migrateLocalDataToCloud({
       user,
       transactions: loadTransactions(),
       categories: loadCategories(),
       monthlyBudgets: loadMonthlyBudgets(),
+      monthlyPlans: loadMonthlyPlans(),
     });
 
     console.log("Kassa: подписываемся на Firestore");
@@ -679,6 +693,12 @@ async function startCloudSession(user) {
           "Синхронизировано",
           "online",
         );
+      },
+
+      onBudgetPlans(nextPlans) {
+        monthlyPlans = nextPlans;
+        saveMonthlyPlans(monthlyPlans);
+        refreshApp();
       },
 
       onReady() {

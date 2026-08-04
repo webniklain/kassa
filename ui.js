@@ -451,6 +451,7 @@ function openCategoryDialog(category = null) {
   const idInput = document.getElementById("category-id");
   const nameInput = document.getElementById("new-category-name");
   const iconInput = document.getElementById("new-category-icon");
+  const behaviorInput = document.getElementById("category-budget-behavior");
   const title = document.getElementById("category-dialog-title");
   const submitButton = document.getElementById(
     "category-submit-button",
@@ -468,6 +469,10 @@ function openCategoryDialog(category = null) {
 
   if (iconInput) {
     iconInput.value = category?.icon || "📦";
+  }
+
+  if (behaviorInput) {
+    behaviorInput.value = category?.budgetBehavior || "normal";
   }
 
   if (title) {
@@ -494,16 +499,69 @@ function closeCategoryDialog() {
   document.getElementById("category-dialog")?.close();
 }
 
-function openBudgetDialog(currentBudget) {
+function renderBudgetSettingsPreview() {
+  const budget = Number(document.getElementById("monthly-budget")?.value) || 0;
+  const reserved = [...document.querySelectorAll("[data-planned-category-id]")].reduce(
+    (sum, input) => sum + (Number(input.value) || 0),
+    0,
+  );
+  const preview = document.getElementById("discretionary-budget-preview");
+  if (preview) {
+    preview.textContent = formatMoney(Math.max(0, budget - reserved));
+  }
+}
+
+function openBudgetDialog(currentBudget, categories = [], monthlyPlan = {}) {
   const dialog = document.getElementById("budget-dialog");
   const input = document.getElementById("monthly-budget");
+  const plannedList = document.getElementById("planned-payments-list");
+  const compensatedList = document.getElementById("compensated-categories-list");
+  const plannedPayments = monthlyPlan.plannedPayments || {};
 
   input.value = currentBudget || "";
+  plannedList.innerHTML = "";
+  compensatedList.innerHTML = "";
+
+  categories
+    .filter((category) => !category.isArchived && category.budgetBehavior === "reserved")
+    .sort((a, b) => a.name.localeCompare(b.name, "ru"))
+    .forEach((category) => {
+      const row = document.createElement("label");
+      row.className = "planned-payment-row";
+      row.innerHTML = `
+        <span class="planned-payment-identity">
+          <span>${category.icon || "📦"}</span>
+          <strong>${category.name}</strong>
+        </span>
+        <span class="planned-payment-input-wrap">
+          <input type="number" min="0" step="0.01" inputmode="decimal" data-planned-category-id="${category.id}" value="${Number(plannedPayments[category.id]) || ""}" placeholder="0" />
+          <small>GEL</small>
+        </span>`;
+      plannedList.append(row);
+    });
+
+  categories
+    .filter((category) => !category.isArchived && category.budgetBehavior === "compensated")
+    .forEach((category) => {
+      const chip = document.createElement("span");
+      chip.className = "budget-category-chip";
+      chip.textContent = `${category.icon || "📦"} ${category.name}`;
+      compensatedList.append(chip);
+    });
+
+  if (!plannedList.children.length) {
+    plannedList.innerHTML = '<p class="empty-state compact">Назначьте категории тип «Обязательная» в редакторе категорий</p>';
+  }
+  if (!compensatedList.children.length) {
+    compensatedList.innerHTML = '<p class="empty-state compact">Компенсируемых категорий пока нет</p>';
+  }
+
+  input.oninput = renderBudgetSettingsPreview;
+  plannedList.oninput = renderBudgetSettingsPreview;
+  renderBudgetSettingsPreview();
   dialog.showModal();
 
-  window.setTimeout(() => {
-    input.focus();
-  }, 50);
+  window.setTimeout(() => input.focus(), 50);
 }
 
 function closeBudgetDialog() {
@@ -530,6 +588,8 @@ function getCategoryFormValues() {
     id: document.getElementById("category-id")?.value || "",
     name: document.getElementById("new-category-name")?.value || "",
     icon: document.getElementById("new-category-icon")?.value || "📦",
+    budgetBehavior:
+      document.getElementById("category-budget-behavior")?.value || "normal",
   };
 }
 
@@ -537,10 +597,26 @@ function getNewCategoryName() {
   return getCategoryFormValues().name;
 }
 
+function getBudgetFormValues() {
+  const plannedPayments = {};
+
+  document
+    .querySelectorAll("[data-planned-category-id]")
+    .forEach((input) => {
+      const amount = Number(input.value) || 0;
+      if (amount > 0) {
+        plannedPayments[input.dataset.plannedCategoryId] = amount;
+      }
+    });
+
+  return {
+    budget: Number(document.getElementById("monthly-budget").value),
+    plannedPayments,
+  };
+}
+
 function getBudgetFormValue() {
-  return Number(
-    document.getElementById("monthly-budget").value,
-  );
+  return getBudgetFormValues().budget;
 }
 
 function showError(message) {
@@ -653,8 +729,17 @@ function renderCategoryManager(categories, onEdit) {
     icon.className = "category-manager-icon";
     icon.textContent = category.icon || "📦";
 
+    const text = document.createElement("div");
     const name = document.createElement("strong");
     name.textContent = category.name;
+    const type = document.createElement("small");
+    type.className = "category-type-label";
+    type.textContent = {
+      reserved: "Обязательная",
+      compensated: "Компенсируемая",
+      normal: "Обычная",
+    }[category.budgetBehavior || "normal"];
+    text.append(name, type);
 
     const editButton = document.createElement("button");
     editButton.type = "button";
@@ -662,7 +747,7 @@ function renderCategoryManager(categories, onEdit) {
     editButton.textContent = "Изменить";
     editButton.addEventListener("click", () => onEdit(category.id));
 
-    identity.append(icon, name);
+    identity.append(icon, text);
     row.append(identity, editButton);
     list.append(row);
   });

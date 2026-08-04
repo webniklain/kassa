@@ -78,10 +78,130 @@ function getLastSevenDaysExpenses(transactions, today = new Date()) {
     .reduce((sum, transaction) => sum + Number(transaction.amount), 0);
 }
 
+function getCategoryBehaviorMap(categories = []) {
+  return new Map(
+    categories.map((category) => [
+      category.id,
+      category.budgetBehavior || "normal",
+    ]),
+  );
+}
+
+function calculateRecommendationExpenses(
+  transactions,
+  categories,
+  monthlyPlan = {},
+  date = new Date(),
+) {
+  const behaviorByCategory = getCategoryBehaviorMap(categories);
+  const plannedPayments = monthlyPlan.plannedPayments || {};
+  const monthKey = getMonthKey(date);
+  const monthExpenses = getTransactionsForMonth(
+    transactions,
+    monthKey,
+  ).filter((transaction) => transaction.type === "expense");
+
+  const reservedActualByCategory = new Map();
+  let ordinaryExpenses = 0;
+
+  monthExpenses.forEach((transaction) => {
+    const amount = Number(transaction.amount) || 0;
+    const behavior =
+      behaviorByCategory.get(transaction.categoryId) || "normal";
+
+    if (behavior === "compensated") {
+      return;
+    }
+
+    if (behavior === "reserved") {
+      reservedActualByCategory.set(
+        transaction.categoryId,
+        (reservedActualByCategory.get(transaction.categoryId) || 0) + amount,
+      );
+      return;
+    }
+
+    ordinaryExpenses += amount;
+  });
+
+  const plannedTotal = Object.values(plannedPayments).reduce(
+    (sum, amount) => sum + (Number(amount) || 0),
+    0,
+  );
+
+  let reservedOverrun = 0;
+  reservedActualByCategory.forEach((actual, categoryId) => {
+    const planned = Number(plannedPayments[categoryId]) || 0;
+    reservedOverrun += Math.max(0, actual - planned);
+  });
+
+  // Считаем только ту часть сегодняшних расходов, которая реально
+  // уменьшает повседневный лимит: обычные расходы и перерасход резерва.
+  const todayStart = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+  );
+  let countableToday = 0;
+
+  const reservedBeforeToday = new Map();
+  const reservedToday = new Map();
+
+  monthExpenses.forEach((transaction) => {
+    const behavior =
+      behaviorByCategory.get(transaction.categoryId) || "normal";
+    const amount = Number(transaction.amount) || 0;
+    const transactionDate = parseLocalDate(transaction.date);
+
+    if (behavior === "compensated") {
+      return;
+    }
+
+    if (behavior === "normal") {
+      if (isSameDay(transactionDate, date)) {
+        countableToday += amount;
+      }
+      return;
+    }
+
+    if (behavior === "reserved") {
+      const target = transactionDate < todayStart
+        ? reservedBeforeToday
+        : isSameDay(transactionDate, date)
+          ? reservedToday
+          : null;
+
+      if (target) {
+        target.set(
+          transaction.categoryId,
+          (target.get(transaction.categoryId) || 0) + amount,
+        );
+      }
+    }
+  });
+
+  reservedToday.forEach((todayAmount, categoryId) => {
+    const before = reservedBeforeToday.get(categoryId) || 0;
+    const planned = Number(plannedPayments[categoryId]) || 0;
+    const excessBefore = Math.max(0, before - planned);
+    const excessAfter = Math.max(0, before + todayAmount - planned);
+    countableToday += excessAfter - excessBefore;
+  });
+
+  return {
+    plannedTotal,
+    ordinaryExpenses,
+    reservedOverrun,
+    countableToday,
+  };
+}
+
 function calculateMonthlySummary(
   transactions,
   monthlyBudgets,
   date = new Date(),
+  categories = [],
+  monthlyPlans = {},
 ) {
   const monthKey = getMonthKey(date);
   const monthTransactions = getTransactionsForMonth(
@@ -93,6 +213,21 @@ function calculateMonthlySummary(
   const income = sumTransactions(monthTransactions, "income");
   const expenses = sumTransactions(monthTransactions, "expense");
   const balance = budget + income - expenses;
+  const monthlyPlan = monthlyPlans[monthKey] || {};
+
+  const recommendationExpenses = calculateRecommendationExpenses(
+    transactions,
+    categories,
+    monthlyPlan,
+    date,
+  );
+
+  const recommendationBalance =
+    budget +
+    income -
+    recommendationExpenses.plannedTotal -
+    recommendationExpenses.ordinaryExpenses -
+    recommendationExpenses.reservedOverrun;
 
   return {
     monthKey,
@@ -100,6 +235,9 @@ function calculateMonthlySummary(
     income,
     expenses,
     balance,
+    recommendationBalance,
+    plannedTotal: recommendationExpenses.plannedTotal,
+    dailyCountableExpenses: recommendationExpenses.countableToday,
     todayExpenses: getTodayExpenses(monthTransactions, date),
     weekExpenses: getLastSevenDaysExpenses(monthTransactions, date),
     monthExpenses: expenses,
@@ -120,6 +258,7 @@ function createCategory(name) {
         : `category-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     name: normalizedName,
     icon: "📦",
+    budgetBehavior: "normal",
     isArchived: false,
     createdAt: new Date().toISOString(),
   };
@@ -239,48 +378,31 @@ function getDaysRemainingInMonth(date = new Date()) {
 function calculateDailyRecommendation(summary, date = new Date()) {
   const daysLeft = getDaysRemainingInMonth(date);
 
-  const currentBalance = Number(summary.balance) || 0;
-  const spentToday = Number(summary.todayExpenses) || 0;
+  const currentBalance = Number(summary.recommendationBalance) || 0;
+  const spentToday = Number(summary.dailyCountableExpenses) || 0;
 
-  /*
-   * Текущий balance уже уменьшен на сегодняшние расходы.
-   * Возвращаем их обратно, чтобы восстановить сумму,
-   * которая была доступна в начале сегодняшнего дня.
-   */
-  const availableAtStartOfToday =
-    currentBalance + spentToday;
-
-  const dailyLimit =
-    daysLeft > 0
-      ? availableAtStartOfToday / daysLeft
-      : 0;
-
-  const remainingToday =
-    dailyLimit - spentToday;
+  const availableAtStartOfToday = currentBalance + spentToday;
+  const dailyLimit = daysLeft > 0 ? availableAtStartOfToday / daysLeft : 0;
+  const remainingToday = dailyLimit - spentToday;
 
   let status = "good";
   let message = "Всё идёт по плану";
 
   if (currentBalance < 0) {
     status = "danger";
-    message = "Месячный бюджет уже превышен";
+    message = "Повседневный бюджет уже превышен";
   } else if (remainingToday <= 0) {
     status = "danger";
-    message =
-      "На сегодня дневная норма уже использована";
+    message = "На сегодня дневная норма уже использована";
   } else if (remainingToday < dailyLimit * 0.35) {
     status = "warning";
-    message =
-      "Сегодня лучше быть осторожнее с расходами";
+    message = "Сегодня лучше быть осторожнее с расходами";
   }
 
   const remainingPercent =
-  dailyLimit > 0
-    ? Math.max(
-        0,
-        Math.min(100, (remainingToday / dailyLimit) * 100),
-      )
-    : 0;
+    dailyLimit > 0
+      ? Math.max(0, Math.min(100, (remainingToday / dailyLimit) * 100))
+      : 0;
 
   return {
     daysLeft,
@@ -372,9 +494,12 @@ function calculateCategoryExpenseSummary(
   };
 }
 
-function updateCategory(category, { name, icon }) {
+function updateCategory(category, { name, icon, budgetBehavior }) {
   const normalizedName = String(name || "").trim();
   const normalizedIcon = String(icon || "").trim() || "📦";
+  const normalizedBehavior = ["normal", "reserved", "compensated"].includes(budgetBehavior)
+    ? budgetBehavior
+    : category?.budgetBehavior || "normal";
 
   if (!category) {
     throw new Error("Категория не найдена");
@@ -388,6 +513,7 @@ function updateCategory(category, { name, icon }) {
     ...category,
     name: normalizedName,
     icon: normalizedIcon,
+    budgetBehavior: normalizedBehavior,
     updatedAt: new Date().toISOString(),
   };
 }

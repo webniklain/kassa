@@ -49,6 +49,7 @@ function subscribeToFamilyData({
   onTransactions,
   onCategories,
   onBudgets,
+  onBudgetPlans,
   onReady,
   onError,
 }) {
@@ -126,9 +127,17 @@ function subscribeToFamilyData({
       { includeMetadataChanges: true },
       (snapshot) => {
         const budgets = {};
+        const budgetPlans = {};
 
         snapshot.docs.forEach((item) => {
-          budgets[item.id] = Number(item.data().amount) || 0;
+          const data = item.data();
+          budgets[item.id] = Number(data.amount) || 0;
+          budgetPlans[item.id] = {
+            plannedPayments:
+              data.plannedPayments && typeof data.plannedPayments === "object"
+                ? data.plannedPayments
+                : {},
+          };
         });
 
         console.log(
@@ -138,6 +147,7 @@ function subscribeToFamilyData({
         );
 
         onBudgets(budgets);
+        onBudgetPlans?.(budgetPlans);
         markCollectionReady("budgets");
       },
       handleListenerError,
@@ -205,12 +215,29 @@ async function saveCloudCategory(category, user) {
   );
 }
 
-async function saveCloudBudget(monthKey, amount, user) {
+async function saveCloudBudget(
+  monthKey,
+  amount,
+  user,
+  monthlyPlan = {},
+) {
+  const plannedPayments = {};
+
+  Object.entries(monthlyPlan.plannedPayments || {}).forEach(
+    ([categoryId, value]) => {
+      const numericValue = Number(value) || 0;
+      if (numericValue > 0) {
+        plannedPayments[categoryId] = numericValue;
+      }
+    },
+  );
+
   await setDoc(
     familyItem("budgets", monthKey),
     {
       amount: Number(amount) || 0,
       month: monthKey,
+      plannedPayments,
       updatedAt: new Date().toISOString(),
       updatedBy: user.uid,
       updatedByEmail: user.email || "",
@@ -218,11 +245,56 @@ async function saveCloudBudget(monthKey, amount, user) {
   );
 }
 
+async function ensureFinancialCategories(user) {
+  const required = [
+    { names: ["Кредит/рассрочка", "Кредит", "Рассрочка"], name: "Кредит/рассрочка", icon: "💳", budgetBehavior: "reserved" },
+    { names: ["Сигареты"], name: "Сигареты", icon: "🚬", budgetBehavior: "reserved" },
+    { names: ["Занятия Тимы"], name: "Занятия Тимы", icon: "👦", budgetBehavior: "reserved" },
+    { names: ["Аренда квартиры", "Аренда"], name: "Аренда квартиры", icon: "🏠", budgetBehavior: "reserved" },
+    { names: ["Налоги"], name: "Налоги", icon: "🧾", budgetBehavior: "reserved" },
+    { names: ["Коммуналка", "Коммунальные"], name: "Коммуналка", icon: "💡", budgetBehavior: "compensated" },
+  ];
+
+  const snapshot = await getDocs(familyCollection("categories"));
+  const categories = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+
+  for (const definition of required) {
+    const existing = categories.find((category) =>
+      definition.names.some(
+        (name) => String(category.name || "").trim().toLowerCase() === name.toLowerCase(),
+      ),
+    );
+
+    if (existing) {
+      if (!existing.budgetBehavior) {
+        await saveCloudCategory(
+          { ...existing, budgetBehavior: definition.budgetBehavior },
+          user,
+        );
+      }
+      continue;
+    }
+
+    await saveCloudCategory(
+      {
+        id: `category-finance-${definition.name.toLowerCase().replace(/[^a-zа-я0-9]+/gi, "-")}`,
+        name: definition.name,
+        icon: definition.icon,
+        budgetBehavior: definition.budgetBehavior,
+        isArchived: false,
+        createdAt: new Date().toISOString(),
+      },
+      user,
+    );
+  }
+}
+
 async function migrateLocalDataToCloud({
   user,
   transactions,
   categories,
   monthlyBudgets,
+  monthlyPlans = {},
 }) {
   const migrationKey = `kassa-cloud-migrated-${user.uid}`;
 
@@ -243,7 +315,12 @@ async function migrateLocalDataToCloud({
   Object.entries(monthlyBudgets).forEach(
     ([monthKey, amount]) => {
       writes.push(
-        saveCloudBudget(monthKey, amount, user),
+        saveCloudBudget(
+          monthKey,
+          amount,
+          user,
+          monthlyPlans[monthKey] || {},
+        ),
       );
     },
   );
@@ -269,6 +346,7 @@ export {
   clearCloudTransactions,
   deleteCloudTransaction,
   ensureFamilyDocument,
+  ensureFinancialCategories,
   migrateLocalDataToCloud,
   saveCloudBudget,
   saveCloudCategory,
