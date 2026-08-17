@@ -94,22 +94,22 @@ function calculateRecommendationExpenses(
   date = new Date(),
 ) {
   const behaviorByCategory = getCategoryBehaviorMap(categories);
+  const categoryById = new Map(categories.map((category) => [category.id, category]));
   const plannedPayments = monthlyPlan.plannedPayments || {};
   const monthKey = getMonthKey(date);
-  const monthExpenses = getTransactionsForMonth(
-    transactions,
-    monthKey,
-  ).filter((transaction) => transaction.type === "expense");
+  const monthExpenses = getTransactionsForMonth(transactions, monthKey)
+    .filter((transaction) => transaction.type === "expense");
 
   const reservedActualByCategory = new Map();
   let ordinaryExpenses = 0;
+  let compensatedExpenses = 0;
 
   monthExpenses.forEach((transaction) => {
     const amount = Number(transaction.amount) || 0;
-    const behavior =
-      behaviorByCategory.get(transaction.categoryId) || "normal";
+    const behavior = behaviorByCategory.get(transaction.categoryId) || "normal";
 
     if (behavior === "compensated") {
+      compensatedExpenses += amount;
       return;
     }
 
@@ -124,58 +124,57 @@ function calculateRecommendationExpenses(
     ordinaryExpenses += amount;
   });
 
-  const plannedTotal = Object.values(plannedPayments).reduce(
-    (sum, amount) => sum + (Number(amount) || 0),
-    0,
-  );
+  const reservedCategoryIds = new Set([
+    ...Object.keys(plannedPayments),
+    ...reservedActualByCategory.keys(),
+  ]);
 
-  let reservedOverrun = 0;
-  reservedActualByCategory.forEach((actual, categoryId) => {
-    const planned = Number(plannedPayments[categoryId]) || 0;
-    reservedOverrun += Math.max(0, actual - planned);
-  });
+  const reserveItems = [...reservedCategoryIds]
+    .filter((categoryId) => (behaviorByCategory.get(categoryId) || "normal") === "reserved")
+    .map((categoryId) => {
+      const planned = Number(plannedPayments[categoryId]) || 0;
+      const actual = reservedActualByCategory.get(categoryId) || 0;
+      return {
+        categoryId,
+        name: categoryById.get(categoryId)?.name || "Категория",
+        icon: categoryById.get(categoryId)?.icon || "📦",
+        planned,
+        actual,
+        remaining: Math.max(0, planned - actual),
+        overrun: Math.max(0, actual - planned),
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name, "ru"));
 
-  // Считаем только ту часть сегодняшних расходов, которая реально
-  // уменьшает повседневный лимит: обычные расходы и перерасход резерва.
-  const todayStart = new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate(),
-  );
+  const plannedTotal = reserveItems.reduce((sum, item) => sum + item.planned, 0);
+  const remainingReserve = reserveItems.reduce((sum, item) => sum + item.remaining, 0);
+  const reservedOverrun = reserveItems.reduce((sum, item) => sum + item.overrun, 0);
+
+  // В дневной лимит входят обычные расходы и только та часть обязательных
+  // расходов, которая в текущий день вышла за оставшийся на начало дня резерв.
+  const todayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   let countableToday = 0;
-
   const reservedBeforeToday = new Map();
   const reservedToday = new Map();
 
   monthExpenses.forEach((transaction) => {
-    const behavior =
-      behaviorByCategory.get(transaction.categoryId) || "normal";
+    const behavior = behaviorByCategory.get(transaction.categoryId) || "normal";
     const amount = Number(transaction.amount) || 0;
     const transactionDate = parseLocalDate(transaction.date);
 
-    if (behavior === "compensated") {
-      return;
-    }
+    if (behavior === "compensated") return;
 
     if (behavior === "normal") {
-      if (isSameDay(transactionDate, date)) {
-        countableToday += amount;
-      }
+      if (isSameDay(transactionDate, date)) countableToday += amount;
       return;
     }
 
     if (behavior === "reserved") {
       const target = transactionDate < todayStart
         ? reservedBeforeToday
-        : isSameDay(transactionDate, date)
-          ? reservedToday
-          : null;
-
+        : isSameDay(transactionDate, date) ? reservedToday : null;
       if (target) {
-        target.set(
-          transaction.categoryId,
-          (target.get(transaction.categoryId) || 0) + amount,
-        );
+        target.set(transaction.categoryId, (target.get(transaction.categoryId) || 0) + amount);
       }
     }
   });
@@ -183,15 +182,16 @@ function calculateRecommendationExpenses(
   reservedToday.forEach((todayAmount, categoryId) => {
     const before = reservedBeforeToday.get(categoryId) || 0;
     const planned = Number(plannedPayments[categoryId]) || 0;
-    const excessBefore = Math.max(0, before - planned);
-    const excessAfter = Math.max(0, before + todayAmount - planned);
-    countableToday += excessAfter - excessBefore;
+    countableToday += Math.max(0, before + todayAmount - planned) - Math.max(0, before - planned);
   });
 
   return {
     plannedTotal,
+    remainingReserve,
     ordinaryExpenses,
+    compensatedExpenses,
     reservedOverrun,
+    reserveItems,
     countableToday,
   };
 }
@@ -222,12 +222,12 @@ function calculateMonthlySummary(
     date,
   );
 
+  // Считаем от реального текущего остатка: компенсируемые расходы возвращаем
+  // в расчёт, а из обязательных вычитаем только НЕИЗРАСХОДОВАННЫЙ резерв.
   const recommendationBalance =
-    budget +
-    income -
-    recommendationExpenses.plannedTotal -
-    recommendationExpenses.ordinaryExpenses -
-    recommendationExpenses.reservedOverrun;
+    balance +
+    recommendationExpenses.compensatedExpenses -
+    recommendationExpenses.remainingReserve;
 
   return {
     monthKey,
@@ -237,6 +237,10 @@ function calculateMonthlySummary(
     balance,
     recommendationBalance,
     plannedTotal: recommendationExpenses.plannedTotal,
+    remainingReserve: recommendationExpenses.remainingReserve,
+    compensatedExpenses: recommendationExpenses.compensatedExpenses,
+    reservedOverrun: recommendationExpenses.reservedOverrun,
+    reserveItems: recommendationExpenses.reserveItems,
     dailyCountableExpenses: recommendationExpenses.countableToday,
     todayExpenses: getTodayExpenses(monthTransactions, date),
     weekExpenses: getLastSevenDaysExpenses(monthTransactions, date),

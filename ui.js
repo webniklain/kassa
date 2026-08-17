@@ -500,24 +500,48 @@ function closeCategoryDialog() {
 }
 
 function renderBudgetSettingsPreview() {
-  const budget = Number(document.getElementById("monthly-budget")?.value) || 0;
-  const reserved = [...document.querySelectorAll("[data-planned-category-id]")].reduce(
-    (sum, input) => sum + (Number(input.value) || 0),
-    0,
-  );
-  const preview = document.getElementById("discretionary-budget-preview");
-  if (preview) {
-    preview.textContent = formatMoney(Math.max(0, budget - reserved));
-  }
+  const actualBalance = Number(document.getElementById("budget-dialog")?.dataset.actualBalance) || 0;
+  const compensatedExpenses = Number(document.getElementById("budget-dialog")?.dataset.compensatedExpenses) || 0;
+
+  let remainingReserve = 0;
+
+  document.querySelectorAll("[data-planned-category-id]").forEach((input) => {
+    const planned = Number(input.value) || 0;
+    const actual = Number(input.dataset.actualAmount) || 0;
+    const remaining = Math.max(0, planned - actual);
+    const overrun = Math.max(0, actual - planned);
+    remainingReserve += remaining;
+
+    const row = input.closest(".planned-payment-row");
+    const actualNode = row?.querySelector("[data-reserve-actual]");
+    const remainingNode = row?.querySelector("[data-reserve-remaining]");
+    const overrunNode = row?.querySelector("[data-reserve-overrun]");
+
+    if (actualNode) actualNode.textContent = `Потрачено: ${formatMoney(actual)}`;
+    if (remainingNode) remainingNode.textContent = `Осталось: ${formatMoney(remaining)}`;
+    if (overrunNode) {
+      overrunNode.hidden = overrun <= 0;
+      overrunNode.textContent = `Перерасход: ${formatMoney(overrun)}`;
+    }
+  });
+
+  const freeBalance = actualBalance + compensatedExpenses - remainingReserve;
+  setText("actual-balance-preview", formatMoney(actualBalance));
+  setText("remaining-reserve-preview", formatMoney(remainingReserve));
+  setText("compensated-expenses-preview", formatMoney(compensatedExpenses));
+  setText("discretionary-budget-preview", formatMoney(Math.max(0, freeBalance)));
 }
 
-function openBudgetDialog(currentBudget, categories = [], monthlyPlan = {}) {
+function openBudgetDialog(currentBudget, categories = [], monthlyPlan = {}, summary = {}) {
   const dialog = document.getElementById("budget-dialog");
   const input = document.getElementById("monthly-budget");
   const plannedList = document.getElementById("planned-payments-list");
   const compensatedList = document.getElementById("compensated-categories-list");
   const plannedPayments = monthlyPlan.plannedPayments || {};
+  const reserveActualById = new Map((summary.reserveItems || []).map((item) => [item.categoryId, item.actual]));
 
+  dialog.dataset.actualBalance = String(Number(summary.balance) || 0);
+  dialog.dataset.compensatedExpenses = String(Number(summary.compensatedExpenses) || 0);
   input.value = currentBudget || "";
   plannedList.innerHTML = "";
   compensatedList.innerHTML = "";
@@ -526,15 +550,21 @@ function openBudgetDialog(currentBudget, categories = [], monthlyPlan = {}) {
     .filter((category) => !category.isArchived && category.budgetBehavior === "reserved")
     .sort((a, b) => a.name.localeCompare(b.name, "ru"))
     .forEach((category) => {
+      const actual = reserveActualById.get(category.id) || 0;
       const row = document.createElement("label");
       row.className = "planned-payment-row";
       row.innerHTML = `
         <span class="planned-payment-identity">
           <span>${category.icon || "📦"}</span>
-          <strong>${category.name}</strong>
+          <span class="planned-payment-text">
+            <strong>${category.name}</strong>
+            <small data-reserve-actual>Потрачено: ${formatMoney(actual)}</small>
+            <small data-reserve-remaining>Осталось: 0 GEL</small>
+            <small class="reserve-overrun" data-reserve-overrun hidden></small>
+          </span>
         </span>
         <span class="planned-payment-input-wrap">
-          <input type="number" min="0" step="0.01" inputmode="decimal" data-planned-category-id="${category.id}" value="${Number(plannedPayments[category.id]) || ""}" placeholder="0" />
+          <input type="number" min="0" step="0.01" inputmode="decimal" data-planned-category-id="${category.id}" data-actual-amount="${actual}" value="${Number(plannedPayments[category.id]) || ""}" placeholder="0" />
           <small>GEL</small>
         </span>`;
       plannedList.append(row);
@@ -549,18 +579,13 @@ function openBudgetDialog(currentBudget, categories = [], monthlyPlan = {}) {
       compensatedList.append(chip);
     });
 
-  if (!plannedList.children.length) {
-    plannedList.innerHTML = '<p class="empty-state compact">Назначьте категории тип «Обязательная» в редакторе категорий</p>';
-  }
-  if (!compensatedList.children.length) {
-    compensatedList.innerHTML = '<p class="empty-state compact">Компенсируемых категорий пока нет</p>';
-  }
+  if (!plannedList.children.length) plannedList.innerHTML = '<p class="empty-state compact">Назначьте категории тип «Обязательная» в редакторе категорий</p>';
+  if (!compensatedList.children.length) compensatedList.innerHTML = '<p class="empty-state compact">Компенсируемых категорий пока нет</p>';
 
   input.oninput = renderBudgetSettingsPreview;
   plannedList.oninput = renderBudgetSettingsPreview;
   renderBudgetSettingsPreview();
   dialog.showModal();
-
   window.setTimeout(() => input.focus(), 50);
 }
 

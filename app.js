@@ -469,10 +469,19 @@ function registerEventListeners() {
       const currentBudget =
         Number(monthlyBudgets[currentMonthKey]) || 0;
 
+      const summary = calculateMonthlySummary(
+        transactions,
+        monthlyBudgets,
+        new Date(),
+        categories,
+        monthlyPlans,
+      );
+
       openBudgetDialog(
         currentBudget,
         categories,
         monthlyPlans[currentMonthKey] || {},
+        summary,
       );
     });
 

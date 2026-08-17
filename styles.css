@@ -1746,3 +1746,63 @@ body {
   .planned-payment-identity strong { font-size: 13px; }
   .discretionary-preview { align-items: flex-start; flex-direction: column; }
 }
+
+/* ==================================================
+   DYNAMIC RESERVE BREAKDOWN 2.1.1
+   ================================================== */
+.planned-payment-text {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+.planned-payment-text > strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.planned-payment-text > small {
+  color: var(--neo-muted, #8d95a3);
+  font-size: 10px;
+  line-height: 1.35;
+}
+.planned-payment-text > small[data-reserve-remaining] {
+  color: #b9c4bc;
+}
+.planned-payment-text > .reserve-overrun {
+  color: #ff6577;
+}
+.reserve-breakdown {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 18px;
+  background: linear-gradient(145deg, #11151b, #080a0e);
+  box-shadow: inset 1px 1px 1px rgb(255 255 255 / 5%);
+}
+.reserve-breakdown-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  color: #c7ccd5;
+  font-size: 12px;
+}
+.reserve-breakdown-row strong {
+  color: #fff;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.reserve-breakdown-muted strong {
+  color: #8db5ff;
+}
+@media (max-width: 430px) {
+  .planned-payment-row {
+    align-items: start;
+  }
+  .planned-payment-text > small {
+    font-size: 9px;
+  }
+  .reserve-breakdown-row {
+    align-items: flex-start;
+  }
+}
